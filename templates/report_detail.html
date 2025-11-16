@@ -1,0 +1,32 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>{{ report.report_title }}</h1>
+<p>{{ report.report_summary }}</p>
+<p>Slides: <a href="{{ report.slides_link }}">{{ report.slides_link }}</a></p>
+<p>By: {{ user.display_name if user else "Unknown" }}</p>
+<p>Meeting: {{ meeting.meeting_title if meeting else "—" }}</p>
+<p>Tags:
+  {% for t in tags %}
+    <a href="/tags/{{ t.name }}">{{ t.name }}</a>
+  {% endfor %}
+</p>
+
+<hr>
+<h3>Comments</h3>
+<ul>
+  {% for c in comments %}
+    <li>{{ c.content }} — {{ c.created_at }}</li>
+  {% endfor %}
+</ul>
+
+{% if current_user %}
+<form action="/comments" method="post">
+  <input type="hidden" name="report_id" value="{{ report.id }}">
+  <textarea name="content" rows="3" cols="60"></textarea><br>
+  <button type="submit">Post Comment</button>
+</form>
+{% else %}
+<p><a href="/login">Login</a> to comment.</p>
+{% endif %}
+
+{% endblock %}

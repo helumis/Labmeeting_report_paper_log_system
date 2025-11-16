@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+Jinja2
+python-dotenv
+sqlmodel
+psycopg2-binary
+aiofiles
+python-multipart
+starlette
+itsdangerous
+pydantic_settings

@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>Upload Report</h1>
+<form action="/upload" method="post">
+  <label>Report title: <input type="text" name="report_title" required></label><br>
+  <label>Summary: <br><textarea name="report_summary" rows="4"></textarea></label><br>
+  <label>Slides link: <input type="url" name="slides_link"></label><br>
+  <h3>Meeting (either choose or create)</h3>
+  <label>Meeting title (new): <input type="text" name="meeting_title"></label><br>
+  <label>Meeting date (YYYY-MM-DD): <input type="text" name="meeting_date"></label><br>
+  <label>Meeting location: <input type="text" name="meeting_location"></label><br>
+  <label>Tags (comma separated): <input type="text" name="tags"></label><br>
+  <button type="submit">Create</button>
+</form>
+{% endblock %}

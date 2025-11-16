@@ -1,0 +1,19 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>Reports</h1>
+<ul>
+  {% for item in reports %}
+  <li class="report">
+    <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
+    <div>{{ item.r.report_summary }}</div>
+    <div>by {{ item.user.display_name if item.user else "Unknown" }} — {{ item.r.created_at }}</div>
+    <div>Meeting: {{ item.meeting.meeting_title if item.meeting else "—" }} ({{ item.meeting.meeting_date if item.meeting else "" }})</div>
+    <div>
+      {% for t in item.tags %}
+        <a href="/tags/{{ t.name }}">{{ t.name }}</a>
+      {% endfor %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}
