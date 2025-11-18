@@ -1,0 +1,37 @@
+{% extends "_base.html" %}
+
+{% block content %}
+<h1>Reports tagged with "{{ tag }}"</h1>
+
+{% if reports %}
+  {% for item in reports %}
+    <div class="report">
+      <h2><a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a></h2>
+      <p>{{ item.r.report_summary }}</p>
+      <p>Slides: <a href="{{ item.r.slides_link }}">{{ item.r.slides_link }}</a></p>
+      <p>
+        By: 
+        {% if item.r.paper and item.r.paper.authors %}
+          {% for pa in item.r.paper.authors %}
+            {{ pa.author.name }} ({{ pa.author.organization.name if pa.author.organization else "Unknown" }}){% if not loop.last %}, {% endif %}
+          {% endfor %}
+        {% else %}
+          Unknown
+        {% endif %}
+      </p>
+      <p>Meeting: {{ item.meeting.meeting_title if item.meeting else "—" }}</p>
+      <p>Tags: 
+        {% if item.tags %}
+          {% for t in item.tags %}
+            <a href="/tags/{{ t.name }}">{{ t.name }}</a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        {% endif %}
+      </p>
+    </div>
+  {% endfor %}
+{% else %}
+  <p>No reports found for this tag.</p>
+{% endif %}
+
+<a href="/">Back to home</a>
+{% endblock %}
