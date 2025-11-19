@@ -1,4 +1,5 @@
 {% extends "_base.html" %}
+
 {% block content %}
 <h1>Reports</h1>
 <ul>
@@ -6,12 +7,23 @@
   <li class="report">
     <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
     <div>{{ item.r.report_summary }}</div>
-    <div>by {{ item.user.display_name if item.user else "Unknown" }} — {{ item.r.created_at }}</div>
-    <div>Meeting: {{ item.meeting.meeting_title if item.meeting else "—" }} ({{ item.meeting.meeting_date if item.meeting else "" }})</div>
     <div>
-      {% for t in item.tags %}
-        <a href="/tags/{{ t.name }}">{{ t.name }}</a>
-      {% endfor %}
+      by {{ item.user.display_name if item.user else "Unknown" }} —
+      {{ item.r.created_at.strftime("%Y-%m-%d %H:%M") }}
+    </div>
+    <div>
+      {% if item.r.paper_id %}
+        {% if item.tags %}
+          Paper Tags:
+          {% for t in item.tags %}
+            <a href="/tags/{{ t.name }}">{{ t.name }}</a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        {% else %}
+          Paper has no tags
+        {% endif %}
+      {% else %}
+        No associated paper
+      {% endif %}
     </div>
   </li>
   {% endfor %}

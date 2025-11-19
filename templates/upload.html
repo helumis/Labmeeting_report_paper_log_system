@@ -1,15 +1,128 @@
 {% extends "_base.html" %}
 {% block content %}
 <h1>Upload Report</h1>
+
 <form action="/upload" method="post">
-  <label>Report title: <input type="text" name="report_title" required></label><br>
-  <label>Summary: <br><textarea name="report_summary" rows="4"></textarea></label><br>
-  <label>Slides link: <input type="url" name="slides_link"></label><br>
-  <h3>Meeting (either choose or create)</h3>
-  <label>Meeting title (new): <input type="text" name="meeting_title"></label><br>
-  <label>Meeting date (YYYY-MM-DD): <input type="text" name="meeting_date"></label><br>
+
+  <!-- -----------------------------------
+       基本 Report 欄位
+  ------------------------------------- -->
+  <h2>Report Info</h2>
+  <label>Report title: 
+    <input type="text" name="report_title" required>
+  </label><br>
+
+  <label>Summary:<br>
+    <textarea name="report_summary" rows="4"></textarea>
+  </label><br>
+
+  <label>Slides / Paper link:
+    <input type="url" name="slides_link">
+  </label><br>
+
+  <!-- -----------------------------------
+       LabMeeting
+  ------------------------------------- -->
+  <h2>Meeting</h2>
+  <p>Either choose existing or create new</p>
+
+  <label>Choose existing meeting:
+    <select name="existing_meeting_id">
+      <option value="">(none)</option>
+      {% for m in meetings %}
+      <option value="{{ m.id }}">{{ m.meeting_title }} ({{ m.meeting_date }})</option>
+      {% endfor %}
+    </select>
+  </label><br>
+
+  <h3>Or create new meeting:</h3>
+  <label>Meeting title: <input type="text" name="meeting_title"></label><br>
+  <label>Meeting date : <input type="date" name="meeting_date"></label><br>
   <label>Meeting location: <input type="text" name="meeting_location"></label><br>
-  <label>Tags (comma separated): <input type="text" name="tags"></label><br>
-  <button type="submit">Create</button>
+
+  <!-- -----------------------------------
+       Paper Section
+  ------------------------------------- -->
+  <h2>Paper</h2>
+
+  <!-- 選既有 Paper -->
+  <label>Choose existing paper:
+    <select name="paper_id">
+      <option value="">(none)</option>
+      {% for p in papers %}
+      <option value="{{ p.id }}">{{ p.paper_title }} ({{ p.published_year }})</option>
+      {% endfor %}
+    </select>
+  </label><br>
+
+  <h3>Or create new paper:</h3>
+
+  <label>Paper title: 
+    <input type="text" name="paper_title">
+  </label><br>
+
+  <label>Published year: 
+    <input type="number" name="published_year" min="1900" max="2100">
+  </label><br>
+
+  <label>Published month:
+    <input type="number" name="published_month" min="1" max="12">
+  </label><br>
+
+  <label>Journal or Conference:
+    <input type="text" name="journal_or_conference">
+  </label><br>
+
+  <!-- -----------------------------------
+       Authors & Affiliations
+  ------------------------------------- -->
+  <h2>Authors</h2>
+  <p>Enter authors in order. One row = one author.</p>
+  <p>For each author, list affiliations separated by commas.</p>
+
+  <table id="authors_table" border="1" cellpadding="5">
+    <tr>
+      <th>#</th>
+      <th>Author name</th>
+      <th>Affiliations (comma-separated)</th>
+    </tr>
+    <tr>
+      <td class="author-index">1</td>
+      <td><input type="text" name="author_name_0"></td>
+      <td><input type="text" name="author_affiliations_0" placeholder="Aff1, Aff2"></td>
+    </tr>
+  </table>
+
+  <br>
+  <button type="button" onclick="addAuthorRow()">Add Author</button>
+
+  <script>
+  let authorCount = 1;
+
+  function addAuthorRow() {
+    const table = document.getElementById("authors_table");
+
+    const newRow = document.createElement("tr");
+    newRow.innerHTML = `
+      <td class="author-index">${authorCount + 1}</td>
+      <td><input type="text" name="author_name_${authorCount}"></td>
+      <td><input type="text" name="author_affiliations_${authorCount}" placeholder="Aff1, Aff2"></td>
+    `;
+
+    table.appendChild(newRow);
+    authorCount += 1;
+  }
+  </script>
+
+  <!-- -----------------------------------
+       Tags
+  ------------------------------------- -->
+  <h2>Tags</h2>
+  <label>Tags (comma separated, for new paper):
+    <input type="text" name="tags">
+  </label><br><br>
+
+  <button type="submit">Create Report</button>
 </form>
+
 {% endblock %}

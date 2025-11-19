@@ -1,0 +1,114 @@
+{% extends "_base.html" %}
+{% block content %}
+
+<h1>Search Reports</h1>
+
+<div id="filters"></div>
+
+<button onclick="addFilterRow()">+ 新增條件</button>
+<button onclick="executeQuery()">搜尋</button>
+
+<hr>
+
+<div id="results"></div>
+
+<script>
+let meta = {
+  fields: [
+    {key: "report_title", label: "標題", type: "string", ops: ["contains", "="]},
+    {key: "year", label: "年份", type: "number", ops: [">=", "<=", "="]},
+    {key: "tag", label: "標籤", type: "string", ops: ["="]},
+    {key: "presenter", label: "簡報人", type: "string", ops: ["="]}
+  ]
+};
+
+function addFilterRow() {
+  let div = document.createElement("div");
+  div.className = "filter-row";
+
+  let fieldSel = document.createElement("select");
+  for (let f of meta.fields) {
+    let opt = document.createElement("option");
+    opt.value = f.key;
+    opt.textContent = f.label;
+    fieldSel.appendChild(opt);
+  }
+  fieldSel.onchange = updateOps;
+  div.appendChild(fieldSel);
+
+  let opSel = document.createElement("select");
+  div.appendChild(opSel);
+
+  let valInput = document.createElement("input");
+  div.appendChild(valInput);
+
+  let rm = document.createElement("button");
+  rm.textContent = "x";
+  rm.onclick = () => div.remove();
+  div.appendChild(rm);
+
+  document.getElementById("filters").appendChild(div);
+
+  updateOps.call(fieldSel);
+}
+
+function updateOps() {
+  let row = this.parentElement;
+  let opSel = row.children[1];
+  let valInput = row.children[2];
+
+  let f = meta.fields.find(x => x.key === this.value);
+
+  opSel.innerHTML = "";
+  f.ops.forEach(op => {
+    let o = document.createElement("option");
+    o.value = op;
+    o.textContent = op;
+    opSel.appendChild(o);
+  });
+
+  if (f.type === "number") valInput.type = "number";
+  else if (f.type === "date") valInput.type = "date";
+  else valInput.type = "text";
+}
+
+async function executeQuery() {
+  let rows = document.querySelectorAll(".filter-row");
+  let filters = [];
+
+  rows.forEach(row => {
+    filters.push({
+      field: row.children[0].value,
+      op: row.children[1].value,
+      value: row.children[2].value
+    });
+  });
+
+  let res = await fetch("/query", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({filters})
+  });
+
+  let data = await res.json();
+  renderResults(data);
+}
+
+function renderResults(data) {
+  let div = document.getElementById("results");
+  div.innerHTML = "";
+  data.forEach(x => {
+    let d = document.createElement("div");
+    d.innerHTML =
+      `<div>
+         <a href="/reports/${x.r.id}">${x.r.report_title}</a>
+       </div>
+       <div>${x.r.report_summary || ""}</div>
+       <div>by ${x.user ? x.user.display_name : "?"}</div>
+       <hr>`;
+    div.appendChild(d);
+  });
+}
+</script>
+
+{% endblock %}
