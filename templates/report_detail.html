@@ -22,17 +22,35 @@
 <hr>
 <h3>Paper: {{ paper.paper_title }}</h3>
 <ul>
-    <li>Year: {{ paper.published_year }} / {{ paper.published_month }}</li>
-    <li>Venue: {{ paper.journal_or_conference }}</li>
+    <li>
+        Year: 
+        <a href="/years/{{ paper.published_year }}">{{ paper.published_year }}</a> / {{ paper.published_month }}
+    </li>
+    <li>
+        Venue: 
+    <a href="/venues/{{ paper.journal_or_conference|urlencode }}">
+        {{ paper.journal_or_conference }}
+    </a>
+    </li>
     <li>
         Authors: 
         {% for auth in paper.authors %}
-            {{ auth.name }}
-            <span class="meta">({{ auth.affiliations|map(attribute='name')|join(', ') }})</span>; 
+            <a href="/authors/{{ auth.id }}" style="font-weight: bold;">{{ auth.name }}</a>
+            <span class="meta">
+            ({% for aff in auth.affiliations %}
+                <a href="/affiliations/{{ aff.id }}" style="font-size: 0.9em; color: #6c757d;">
+                    {{ aff.name }}
+                </a>{{ ", " if not loop.last else "" }}
+            {% endfor %})</span>{% if not loop.last %}; {% endif %} 
         {% endfor %}
     </li>
     <li>
-        Tags: {{ tags|map(attribute='name')|join(', ') }}
+        Tags: 
+        {% for tag in tags %}
+            <a href="/tags/{{ tag.id }}" style="background: #007bff; color: white; padding: 2px 5px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+                #{{ tag.name }}
+            </a>
+        {% endfor %}
     </li>
 </ul>
 {% endif %}
@@ -47,9 +65,10 @@
 
 <hr>
 <h3>Comments</h3>
+{# Comment 區塊保持不變 #}
 {% for item in comments %}
     <div style="background: #f9f9f9; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-        <strong>{{ item.user.display_name }}</strong>: {{ item.c.content }}
+        <a href="/profile/{{ item.user.username }}" style="font-weight: bold;">{{ item.user.display_name }}</a>: {{ item.c.content }}
         <div class="meta" style="margin-top: 5px;">
             {{ item.c.created_at.strftime('%Y-%m-%d %H:%M') }}
             {% if current_user and current_user.id == item.c.user_id %}

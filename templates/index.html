@@ -1,16 +1,29 @@
 {% extends "_base.html" %}
 {% block content %}
-<h1>Recent Reports</h1>
+
+<h1>
+    {% if filter_msg %}
+        {{ filter_msg }} 
+    {% else %}
+        Recent Reports
+    {% endif %}
+</h1>
+
+{% if filter_msg %}
+    <a href="/" style="margin-left: 10px; color: #dc3545; text-decoration: none; font-weight: bold;">[X] 清除篩選</a>
+</div>
+{% endif %}
+
 {% if reports %}
     <ul>
     {% for item in reports %}
         <li>
-            <a href="/reports/{{ item.r.id }}" style="font-weight: bold; font-size: 1.1em;">
+            <a href="/reports/{{ item.r.id }}" style="font-weight: bold; font-size: 1.1em; text-decoration: none;">
                 {{ item.r.report_title }}
             </a>
             <br>
             <span class="meta">
-                by {{ item.user.display_name if item.user else "Unknown" }} 
+                by <a href="/profile/{{ item.user.username }}">{{ item.user.display_name if item.user else "Unknown" }}</a> 
                 | {{ item.r.created_at.strftime('%Y-%m-%d') }}
                 {% if item.meeting %} | Meeting: {{ item.meeting.meeting_title }}{% endif %}
             </span>
@@ -20,7 +33,10 @@
             {% endif %}
             <div style="margin-top: 5px;">
                 {% for tag in item.tags %}
-                    <span style="background: #eee; padding: 2px 5px; font-size: 0.8em; border-radius: 4px;">#{{ tag.name }}</span>
+                    <a href="/tags/{{ tag.id }}" 
+                       style="background: #e9ecef; padding: 2px 5px; font-size: 0.8em; border-radius: 4px; text-decoration: none; color: #007bff; margin-right: 5px;">
+                        #{{ tag.name }}
+                    </a>
                 {% endfor %}
             </div>
         </li>
@@ -28,6 +44,6 @@
     {% endfor %}
     </ul>
 {% else %}
-    <p>No reports yet.</p>
+    <p>No reports found.</p>
 {% endif %}
 {% endblock %}

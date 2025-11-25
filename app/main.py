@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import select, Session
+from sqlmodel import select, Session, delete
 from typing import List, Optional
 import uvicorn
 from datetime import datetime
@@ -47,28 +47,174 @@ def get_report_tags(session: Session, report: Report) -> List[Tag]:
 
 def clear_paper_relations(session: Session, paper_id: int):
     """清除指定 Paper 所有 AuthorLink 和 TagLink (用於編輯時重建)"""
-    session.exec(select(PaperAuthorLink).where(PaperAuthorLink.paper_id == paper_id)).delete()
-    session.exec(select(PaperTag).where(PaperTag.paper_id == paper_id)).delete()
+    
+    # *** 修正: 使用 sqlmodel.delete 語句進行批量刪除 ***
+    
+    # 清除 PaperAuthorLink
+    author_link_statement = delete(PaperAuthorLink).where(PaperAuthorLink.paper_id == paper_id)
+    session.exec(author_link_statement)
+    
+    # 清除 PaperTag
+    tag_link_statement = delete(PaperTag).where(PaperTag.paper_id == paper_id)
+    session.exec(tag_link_statement)
+    
     session.commit()
-
-# ---------------- 首頁 (Index) ----------------
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request, session: Session = Depends(get_session)):
-    reports = session.exec(select(Report).order_by(Report.created_at.desc())).all()
+def enrich_reports(session: Session, reports: List[Report]):
+    """將 report 列表打包成前端需要的格式 (包含 user, meeting, paper, tags)"""
     enriched = []
     for r in reports:
-        # 預先載入必要的關聯，避免模板中懶加載失敗
         user = session.get(User, r.user_id) if r.user_id else None
         meeting = session.get(LabMeeting, r.meeting_id) if r.meeting_id else None
         paper = session.get(Paper, r.paper_id) if r.paper_id else None
         tags = get_report_tags(session, r)
         enriched.append({"r": r, "user": user, "meeting": meeting, "paper": paper, "tags": tags})
+    return enriched
+# ---------------- 首頁 (Index) ----------------
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request, session: Session = Depends(get_session)):
+    reports = session.exec(select(Report).order_by(Report.created_at.desc())).all()
+    enriched = enrich_reports(session, reports) # 使用 helper
     
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "reports": enriched, "current_user": get_current_user(request, session)}
+        {
+            "request": request, 
+            "reports": enriched, 
+            "current_user": get_current_user(request, session),
+            "filter_msg": "All Reports" # 給前端顯示標題用
+        }
+    )
+# 1. 篩選 Tag
+@app.get("/tags/{tag_id}", response_class=HTMLResponse)
+def filter_by_tag(request: Request, tag_id: int, session: Session = Depends(get_session)):
+    tag = session.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    
+    # 邏輯: Tag -> PaperTag -> Paper -> Report
+    # 這邊使用 Join 查詢
+    statement = (
+        select(Report)
+        .join(Paper, Report.paper_id == Paper.id)
+        .join(PaperTag, Paper.id == PaperTag.paper_id)
+        .where(PaperTag.tag_id == tag_id)
+        .order_by(Report.created_at.desc())
+    )
+    reports = session.exec(statement).all()
+    
+    return templates.TemplateResponse(
+        "index.html", # 重用 index 模板
+        {
+            "request": request, 
+            "reports": enrich_reports(session, reports), 
+            "current_user": get_current_user(request, session),
+            "filter_msg": f"Reports with Tag: {tag.name}"
+        }
     )
 
+# 2. 篩選 Author
+@app.get("/authors/{author_id}", response_class=HTMLResponse)
+def filter_by_author(request: Request, author_id: int, session: Session = Depends(get_session)):
+    author = session.get(Author, author_id)
+    if not author:
+        raise HTTPException(status_code=404, detail="Author not found")
+
+    statement = (
+        select(Report)
+        .join(Paper, Report.paper_id == Paper.id)
+        .join(PaperAuthorLink, Paper.id == PaperAuthorLink.paper_id)
+        .where(PaperAuthorLink.author_id == author_id)
+        .order_by(Report.created_at.desc())
+    )
+    reports = session.exec(statement).all()
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request, 
+            "reports": enrich_reports(session, reports), 
+            "current_user": get_current_user(request, session),
+            "filter_msg": f"Reports by Author: {author.name}"
+        }
+    )
+
+# 3. 篩選 Affiliation
+@app.get("/affiliations/{aff_id}", response_class=HTMLResponse)
+def filter_by_affiliation(request: Request, aff_id: int, session: Session = Depends(get_session)):
+    aff = session.get(Affiliation, aff_id)
+    if not aff:
+        raise HTTPException(status_code=404, detail="Affiliation not found")
+
+    # 路徑較長: Report -> Paper -> AuthorLink -> Author -> AffiliationLink
+    statement = (
+        select(Report)
+        .join(Paper, Report.paper_id == Paper.id)
+        .join(PaperAuthorLink, Paper.id == PaperAuthorLink.paper_id)
+        .join(Author, PaperAuthorLink.author_id == Author.id)
+        .join(AuthorAffiliationLink, Author.id == AuthorAffiliationLink.author_id)
+        .where(AuthorAffiliationLink.affiliation_id == aff_id)
+        .distinct() # 避免同一篇 Paper 多位作者同單位造成重複
+        .order_by(Report.created_at.desc())
+    )
+    reports = session.exec(statement).all()
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request, 
+            "reports": enrich_reports(session, reports), 
+            "current_user": get_current_user(request, session),
+            "filter_msg": f"Reports from Affiliation: {aff.name}"
+        }
+    )
+
+# 4. 篩選 Year
+@app.get("/years/{year}", response_class=HTMLResponse)
+def filter_by_year(request: Request, year: int, session: Session = Depends(get_session)):
+    statement = (
+        select(Report)
+        .join(Paper, Report.paper_id == Paper.id)
+        .where(Paper.published_year == year)
+        .order_by(Report.created_at.desc())
+    )
+    reports = session.exec(statement).all()
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request, 
+            "reports": enrich_reports(session, reports), 
+            "current_user": get_current_user(request, session),
+            "filter_msg": f"Reports Published in: {year}"
+        }
+    )
+
+# app/main.py (修正 filter_by_venue 路由)
+
+# 5. 篩選 Venue (Journal/Conference)
+# *** 修正: 將 {venue_name} 改為 {venue_name:path} 以允許斜線 (/) 存在於參數中 ***
+@app.get("/venues/{venue_name:path}", response_class=HTMLResponse)
+def filter_by_venue(request: Request, venue_name: str, session: Session = Depends(get_session)):
+    
+    # 由於 venue_name 現在可能包含編碼的斜線，FastAPI 會自動處理 URL 解碼。
+    
+    statement = (
+        select(Report)
+        .join(Paper, Report.paper_id == Paper.id)
+        .where(Paper.journal_or_conference == venue_name)
+        .order_by(Report.created_at.desc())
+    )
+    reports = session.exec(statement).all()
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request, 
+            "reports": enrich_reports(session, reports), 
+            "current_user": get_current_user(request, session),
+            "filter_msg": f"Reports in Venue: {venue_name}"
+        }
+    )
 # ---------------- 報告詳情 (Report Detail) ----------------
 @app.get("/reports/{report_id}", response_class=HTMLResponse)
 def report_detail(request: Request, report_id: int, session: Session = Depends(get_session)):
@@ -374,6 +520,8 @@ async def update_report(request: Request, report_id: int, session: Session = Dep
     return RedirectResponse(url=f"/reports/{report.id}", status_code=303)
 
 # ---------------- 刪除報告 ----------------
+# 修正 app/main.py 中的 delete_report
+
 @app.post("/reports/{report_id}/delete")
 def delete_report(request: Request, report_id: int, session: Session = Depends(get_session)):
     current_user = get_current_user(request, session)
@@ -384,12 +532,16 @@ def delete_report(request: Request, report_id: int, session: Session = Depends(g
     if not report or report.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="權限不足")
 
-    # 手動刪除關聯評論
-    session.exec(select(Comment).where(Comment.report_id == report_id)).delete()
+    # --- 修正部分開始 ---
+    # 先找出所有關聯的評論，然後逐一刪除
+    comments = session.exec(select(Comment).where(Comment.report_id == report_id)).all()
+    for comment in comments:
+        session.delete(comment)
+    # --- 修正部分結束 ---
+
     session.delete(report)
     session.commit()
     return RedirectResponse(url=f"/profile/{current_user.username}", status_code=303)
-
 # ---------------- 評論功能 (Comment) ----------------
 @app.post("/comments")
 def create_comment(request: Request, report_id: int = Form(...), content: str = Form(...), session: Session = Depends(get_session)):
