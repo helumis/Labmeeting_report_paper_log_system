@@ -1,28 +1,22 @@
-# main.py
+# app/main.py
 
 from fastapi import FastAPI, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import select, Session, SQLModel
-from .config import settings
-from .db import engine, create_db_and_tables, get_session
-from .models import (
-    User,
-    LabMeeting,
-    Paper,
-    Report,
-    Tag,
-    Comment,
-    Author,
-    Affiliation,
-    AuthorAffiliationLink,   # <-- 新增
-    PaperAuthorLink,
-    PaperTag
-)
-
+from sqlmodel import select, Session
 from typing import List, Optional
 import uvicorn
+from datetime import datetime
+
+# 假設這些模組存在於您的專案結構中
+from .config import settings
+from .db import create_db_and_tables, get_session
+from .models import (
+    User, LabMeeting, Paper, Report, Tag, Comment,
+    Author, Affiliation, AuthorAffiliationLink,
+    PaperAuthorLink, PaperTag
+)
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
@@ -34,7 +28,8 @@ def on_startup():
     create_db_and_tables()
 
 # ---------------- helpers ----------------
-def get_current_user(request: Request, session=Depends(get_session)):
+def get_current_user(request: Request, session: Session = Depends(get_session)) -> Optional[User]:
+    """取得當前登入的使用者"""
     username = request.session.get("username")
     if not username:
         return None
@@ -42,222 +37,428 @@ def get_current_user(request: Request, session=Depends(get_session)):
     return user
 
 def get_report_tags(session: Session, report: Report) -> List[Tag]:
-    """
-    取得 report 對應 paper 的 tags，若 report 沒有 paper 回傳空 list
-    """
+    """取得 report 對應 paper 的 tags"""
     if not report.paper_id:
         return []
     paper = session.get(Paper, report.paper_id)
     if not paper:
         return []
-    # 使用 selectinload 或直接 access
     return paper.tags if hasattr(paper, "tags") else []
 
-# ---------------- index ----------------
+def clear_paper_relations(session: Session, paper_id: int):
+    """清除指定 Paper 所有 AuthorLink 和 TagLink (用於編輯時重建)"""
+    session.exec(select(PaperAuthorLink).where(PaperAuthorLink.paper_id == paper_id)).delete()
+    session.exec(select(PaperTag).where(PaperTag.paper_id == paper_id)).delete()
+    session.commit()
+
+# ---------------- 首頁 (Index) ----------------
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, session = Depends(get_session)):
+def index(request: Request, session: Session = Depends(get_session)):
     reports = session.exec(select(Report).order_by(Report.created_at.desc())).all()
     enriched = []
     for r in reports:
+        # 預先載入必要的關聯，避免模板中懶加載失敗
         user = session.get(User, r.user_id) if r.user_id else None
         meeting = session.get(LabMeeting, r.meeting_id) if r.meeting_id else None
+        paper = session.get(Paper, r.paper_id) if r.paper_id else None
         tags = get_report_tags(session, r)
-        enriched.append({"r": r, "user": user, "meeting": meeting, "tags": tags})
+        enriched.append({"r": r, "user": user, "meeting": meeting, "paper": paper, "tags": tags})
+    
     return templates.TemplateResponse(
         "index.html",
         {"request": request, "reports": enriched, "current_user": get_current_user(request, session)}
     )
 
-# ---------------- report detail ----------------
+# ---------------- 報告詳情 (Report Detail) ----------------
 @app.get("/reports/{report_id}", response_class=HTMLResponse)
-def report_detail(request: Request, report_id: int, session = Depends(get_session)):
+def report_detail(request: Request, report_id: int, session: Session = Depends(get_session)):
     r = session.get(Report, report_id)
     if not r:
         raise HTTPException(status_code=404, detail="Report not found")
-    user = session.get(User, r.user_id) if r.user_id else None
+    
+    user = session.get(User, r.user_id)
     meeting = session.get(LabMeeting, r.meeting_id) if r.meeting_id else None
+    paper = session.get(Paper, r.paper_id) if r.paper_id else None
     tags = get_report_tags(session, r)
     comments = session.exec(select(Comment).where(Comment.report_id == r.id).order_by(Comment.created_at)).all()
+    
+    # 為每個評論載入使用者資訊
+    enriched_comments = []
+    for c in comments:
+        c_user = session.get(User, c.user_id)
+        enriched_comments.append({"c": c, "user": c_user})
+
     return templates.TemplateResponse(
         "report_detail.html",
-        {"request": request, "report": r, "user": user, "meeting": meeting, "tags": tags, "comments": comments, "current_user": get_current_user(request, session)}
+        {
+            "request": request,
+            "report": r,
+            "user": user,
+            "meeting": meeting,
+            "paper": paper,
+            "tags": tags,
+            "comments": enriched_comments,
+            "current_user": get_current_user(request, session)
+        }
     )
 
-# ---------------- upload ----------------
+# ---------------- 新增報告 (Upload) ----------------
 @app.get("/upload", response_class=HTMLResponse)
-def upload_form(request: Request, session = Depends(get_session)):
+def upload_form(request: Request, session: Session = Depends(get_session)):
     current_user = get_current_user(request, session)
     if not current_user:
         return RedirectResponse(url="/login")
+    
     meetings = session.exec(select(LabMeeting).order_by(LabMeeting.meeting_date.desc())).all()
     papers = session.exec(select(Paper)).all()
     return templates.TemplateResponse(
-        "upload.html", {"request": request, "meetings": meetings, "papers": papers, "current_user": current_user}
+        "upload.html", 
+        {"request": request, "meetings": meetings, "papers": papers, "current_user": current_user}
     )
 
-
 @app.post("/upload")
-async def create_report(request: Request, session=Depends(get_session)):
-    from datetime import datetime
+async def create_report(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    current_user = get_current_user(request, session)
+    if not current_user:
+        return RedirectResponse(url="/login")
 
-    form = await request.form()  # <--- async 取得表單
-    username = request.session.get("username")
-    user = session.exec(select(User).where(User.username == username)).first() if username else None
-
-    # --------------------
-    # 取得基本 Report 欄位
-    # --------------------
-    report_title = form.get("report_title")
-    report_summary = form.get("report_summary", "")
-    slides_link = form.get("slides_link", "")
-
-    # --------------------
-    # LabMeeting
-    # --------------------
+    # 1. 處理 Meeting
     meeting_id = None
-    existing_meeting_id_raw = form.get("existing_meeting_id")
-    existing_meeting_id = int(existing_meeting_id_raw) if existing_meeting_id_raw and existing_meeting_id_raw.isdigit() else None
-    if existing_meeting_id:
-        meeting_id = existing_meeting_id
+    existing_meeting_id = form.get("existing_meeting_id")
+    if existing_meeting_id and existing_meeting_id.isdigit():
+        meeting_id = int(existing_meeting_id)
     else:
-        meeting_title = form.get("meeting_title")
-        meeting_date = form.get("meeting_date")
-        meeting_location = form.get("meeting_location")
-        if meeting_title:
-            meeting = LabMeeting(meeting_title=meeting_title, meeting_location=meeting_location)
-            if meeting_date:
+        # 創建新 Meeting
+        m_title = form.get("meeting_title")
+        if m_title:
+            meeting = LabMeeting(
+                meeting_title=m_title,
+                meeting_location=form.get("meeting_location", ""),
+                meeting_date=datetime.now().date() # 簡化處理，若有日期欄位請自行轉換
+            )
+            # 嘗試轉換日期
+            if form.get("meeting_date"):
                 try:
-                    meeting.meeting_date = datetime.fromisoformat(meeting_date).date()
-                except:
-                    pass
+                    meeting.meeting_date = datetime.fromisoformat(form.get("meeting_date")).date()
+                except: pass
             session.add(meeting)
             session.commit()
             session.refresh(meeting)
             meeting_id = meeting.id
 
-    # --------------------
-    # Paper
-    # --------------------
-    paper_id_raw = form.get("existing_paper_id") or form.get("paper_id")
-    paper_id = int(paper_id_raw) if paper_id_raw and paper_id_raw.isdigit() else None
+    # 2. 處理 Paper
+    paper_id = None
+    existing_paper_id = form.get("existing_paper_id") or form.get("paper_id")
+    if existing_paper_id and existing_paper_id.isdigit():
+        paper_id = int(existing_paper_id)
+    else:
+        # 創建新 Paper
+        p_title = form.get("paper_title")
+        if p_title:
+            paper = Paper(
+                paper_title=p_title,
+                published_year=int(form.get("published_year", 0)),
+                published_month=int(form.get("published_month", 0)),
+                journal_or_conference=form.get("journal_or_conference", "")
+            )
+            session.add(paper)
+            session.commit()
+            session.refresh(paper)
+            paper_id = paper.id
 
-    # 新 Paper 欄位
-    paper_title = form.get("paper_title")
-    published_year = form.get("published_year")
-    published_month = form.get("published_month")
-    journal_or_conference = form.get("journal_or_conference")
-    tags_raw = form.get("tags", "")
+            # 處理 Authors & Affiliations
+            idx = 0
+            while True:
+                a_name = form.get(f"author_name_{idx}")
+                a_affils = form.get(f"author_affiliations_{idx}")
+                if not a_name: break
+                
+                author = session.exec(select(Author).where(Author.name == a_name)).first()
+                if not author:
+                    author = Author(name=a_name)
+                    session.add(author)
+                    session.commit()
+                    session.refresh(author)
+                
+                # Link Author <-> Paper
+                session.add(PaperAuthorLink(paper_id=paper.id, author_id=author.id))
 
-    if not paper_id and paper_title:
-        paper = Paper(
-            paper_title=paper_title,
-            published_year=int(published_year) if published_year and published_year.isdigit() else 0,
-            published_month=int(published_month) if published_month and published_month.isdigit() else 0,
-            journal_or_conference=journal_or_conference or ""
-        )
-        session.add(paper)
+                # Link Author <-> Affiliation
+                if a_affils:
+                    for aff_name in [x.strip() for x in a_affils.split(",") if x.strip()]:
+                        aff = session.exec(select(Affiliation).where(Affiliation.name == aff_name)).first()
+                        if not aff:
+                            aff = Affiliation(name=aff_name)
+                            session.add(aff)
+                            session.commit()
+                            session.refresh(aff)
+                        
+                        link_exists = session.exec(select(AuthorAffiliationLink).where(
+                            AuthorAffiliationLink.author_id == author.id,
+                            AuthorAffiliationLink.affiliation_id == aff.id
+                        )).first()
+                        if not link_exists:
+                            session.add(AuthorAffiliationLink(author_id=author.id, affiliation_id=aff.id))
+                session.commit()
+                idx += 1
+
+            # 處理 Tags
+            tags_str = form.get("tags", "")
+            if tags_str:
+                for t_name in [x.strip() for x in tags_str.split(",") if x.strip()]:
+                    tag = session.exec(select(Tag).where(Tag.name == t_name)).first()
+                    if not tag:
+                        tag = Tag(name=t_name)
+                        session.add(tag)
+                        session.commit()
+                        session.refresh(tag)
+                    session.add(PaperTag(paper_id=paper.id, tag_id=tag.id))
+                session.commit()
+
+    # 3. 創建 Report
+    report = Report(
+        report_title=form.get("report_title"),
+        report_summary=form.get("report_summary", ""),
+        slides_link=form.get("slides_link", ""),
+        user_id=current_user.id,
+        meeting_id=meeting_id if meeting_id else 1, # 若沒選會議，可能需要預設值或報錯
+        paper_id=paper_id
+    )
+    session.add(report)
+    session.commit()
+    session.refresh(report)
+    return RedirectResponse(url=f"/reports/{report.id}", status_code=303)
+
+# ---------------- 編輯報告 (Edit) ----------------
+@app.get("/reports/{report_id}/edit", response_class=HTMLResponse)
+def edit_report_form(request: Request, report_id: int, session: Session = Depends(get_session)):
+    current_user = get_current_user(request, session)
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    report = session.get(Report, report_id)
+    if not report or report.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="權限不足或報告不存在")
+
+    meetings = session.exec(select(LabMeeting).order_by(LabMeeting.meeting_date.desc())).all()
+    papers = session.exec(select(Paper)).all()
+    
+    current_paper = session.get(Paper, report.paper_id) if report.paper_id else None
+    paper_tags = current_paper.tags if current_paper else []
+    paper_authors = current_paper.authors if current_paper else []
+
+    return templates.TemplateResponse(
+        "edit_report.html",
+        {
+            "request": request,
+            "report": report,
+            "meetings": meetings,
+            "papers": papers,
+            "current_meeting_id": report.meeting_id,
+            "current_paper_id": report.paper_id,
+            "current_paper": current_paper,
+            "paper_tags": ",".join([t.name for t in paper_tags]),
+            "paper_authors": paper_authors,
+            "current_user": current_user
+        }
+    )
+
+@app.post("/reports/{report_id}/edit")
+async def update_report(request: Request, report_id: int, session: Session = Depends(get_session)):
+    current_user = get_current_user(request, session)
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    report = session.get(Report, report_id)
+    if not report or report.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="權限不足")
+
+    form = await request.form()
+    
+    # Update Basic Info
+    report.report_title = form.get("report_title")
+    report.report_summary = form.get("report_summary")
+    report.slides_link = form.get("slides_link")
+    
+    # Update Meeting
+    m_id_raw = form.get("existing_meeting_id")
+    if m_id_raw and m_id_raw.isdigit():
+        report.meeting_id = int(m_id_raw)
+
+    # Update Paper
+    existing_paper_id = form.get("existing_paper_id")
+    new_paper_title = form.get("paper_title")
+
+    paper_to_update = None
+
+    # 情境 A: 切換到現有的 Paper
+    if existing_paper_id and existing_paper_id.isdigit():
+        report.paper_id = int(existing_paper_id)
+    
+    # 情境 B: 編輯當前 Paper 或 創建新 Paper
+    elif new_paper_title:
+        if report.paper_id:
+            paper_to_update = session.get(Paper, report.paper_id)
+        
+        if not paper_to_update:
+            paper_to_update = Paper()
+            session.add(paper_to_update)
+            session.commit()
+            session.refresh(paper_to_update)
+            report.paper_id = paper_to_update.id
+        
+        # 更新 Paper 屬性
+        paper_to_update.paper_title = new_paper_title
+        paper_to_update.published_year = int(form.get("published_year", 0))
+        paper_to_update.published_month = int(form.get("published_month", 0))
+        paper_to_update.journal_or_conference = form.get("journal_or_conference", "")
+        session.add(paper_to_update)
         session.commit()
-        session.refresh(paper)
-        paper_id = paper.id
 
-        # --------------------
-        # Authors & Affiliations
-        # --------------------
-        author_idx = 0
+        # 重建關聯 (Author & Tags)
+        clear_paper_relations(session, paper_to_update.id)
+
+        # 重建 Author
+        idx = 0
         while True:
-            author_name = form.get(f"author_name_{author_idx}")
-            author_affils = form.get(f"author_affiliations_{author_idx}")
-            if not author_name:
-                break
-            # 建立 Author
-            author = session.exec(select(Author).where(Author.name == author_name)).first()
+            a_name = form.get(f"author_name_{idx}")
+            a_affils = form.get(f"author_affiliations_{idx}")
+            if not a_name: break
+            
+            author = session.exec(select(Author).where(Author.name == a_name)).first()
             if not author:
-                author = Author(name=author_name)
+                author = Author(name=a_name)
                 session.add(author)
                 session.commit()
                 session.refresh(author)
-            # Affiliations
-            if author_affils:
-                for aff_name in [x.strip() for x in author_affils.split(",") if x.strip()]:
+            
+            session.add(PaperAuthorLink(paper_id=paper_to_update.id, author_id=author.id))
+
+            if a_affils:
+                for aff_name in [x.strip() for x in a_affils.split(",") if x.strip()]:
                     aff = session.exec(select(Affiliation).where(Affiliation.name == aff_name)).first()
                     if not aff:
                         aff = Affiliation(name=aff_name)
                         session.add(aff)
                         session.commit()
                         session.refresh(aff)
-                    # Link author ↔ affiliation
-                    link_exists = session.exec(
-                        select(AuthorAffiliationLink).where(
-                            AuthorAffiliationLink.author_id == author.id,
-                            AuthorAffiliationLink.affiliation_id == aff.id
-                        )
-                    ).first()
+                    link_exists = session.exec(select(AuthorAffiliationLink).where(
+                        AuthorAffiliationLink.author_id == author.id,
+                        AuthorAffiliationLink.affiliation_id == aff.id
+                    )).first()
                     if not link_exists:
                         session.add(AuthorAffiliationLink(author_id=author.id, affiliation_id=aff.id))
-                        session.commit()
-            # Link author ↔ paper
-            link_exists = session.exec(
-                select(PaperAuthorLink).where(
-                    PaperAuthorLink.author_id == author.id,
-                    PaperAuthorLink.paper_id == paper.id
-                )
-            ).first()
-            if not link_exists:
-                session.add(PaperAuthorLink(author_id=author.id, paper_id=paper.id))
-                session.commit()
-            author_idx += 1
+            session.commit()
+            idx += 1
 
-        # --------------------
-        # Tags
-        # --------------------
-        if tags_raw:
-            for t_name in [x.strip() for x in tags_raw.split(",") if x.strip()]:
+        # 重建 Tags
+        tags_str = form.get("tags", "")
+        if tags_str:
+            for t_name in [x.strip() for x in tags_str.split(",") if x.strip()]:
                 tag = session.exec(select(Tag).where(Tag.name == t_name)).first()
                 if not tag:
                     tag = Tag(name=t_name)
                     session.add(tag)
                     session.commit()
                     session.refresh(tag)
-                # Link paper ↔ tag
-                link_exists = session.exec(
-                    select(PaperTag).where(
-                        PaperTag.paper_id == paper.id,
-                        PaperTag.tag_id == tag.id
-                    )
-                ).first()
-                if not link_exists:
-                    session.add(PaperTag(paper_id=paper.id, tag_id=tag.id))
-                    session.commit()
+                session.add(PaperTag(paper_id=paper_to_update.id, tag_id=tag.id))
+            session.commit()
 
-    # --------------------
-    # Create Report
-    # --------------------
-    r = Report(
-        report_title=report_title,
-        report_summary=report_summary,
-        slides_link=slides_link,
-        user_id=user.id if user else None,
-        meeting_id=meeting_id,
-        paper_id=paper_id
-    )
-    session.add(r)
+    else:
+        # 清空 Paper
+        report.paper_id = None
+
+    session.add(report)
     session.commit()
-    session.refresh(r)
+    return RedirectResponse(url=f"/reports/{report.id}", status_code=303)
 
-    return RedirectResponse(url=f"/reports/{r.id}", status_code=303)
+# ---------------- 刪除報告 ----------------
+@app.post("/reports/{report_id}/delete")
+def delete_report(request: Request, report_id: int, session: Session = Depends(get_session)):
+    current_user = get_current_user(request, session)
+    if not current_user:
+        return RedirectResponse(url="/login")
 
+    report = session.get(Report, report_id)
+    if not report or report.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="權限不足")
 
-# ---------------- register / login / logout ----------------
+    # 手動刪除關聯評論
+    session.exec(select(Comment).where(Comment.report_id == report_id)).delete()
+    session.delete(report)
+    session.commit()
+    return RedirectResponse(url=f"/profile/{current_user.username}", status_code=303)
+
+# ---------------- 評論功能 (Comment) ----------------
+@app.post("/comments")
+def create_comment(request: Request, report_id: int = Form(...), content: str = Form(...), session: Session = Depends(get_session)):
+    current_user = get_current_user(request, session)
+    if not current_user:
+        return RedirectResponse(url="/login")
+    
+    c = Comment(report_id=report_id, user_id=current_user.id, content=content)
+    session.add(c)
+    session.commit()
+    return RedirectResponse(url=f"/reports/{report_id}", status_code=303)
+
+@app.post("/comments/{comment_id}/delete")
+def delete_comment(request: Request, comment_id: int, session: Session = Depends(get_session)):
+    current_user = get_current_user(request, session)
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    comment = session.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    if comment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="權限不足")
+
+    report_id = comment.report_id
+    session.delete(comment)
+    session.commit()
+    return RedirectResponse(url=f"/reports/{report_id}", status_code=303)
+
+# ---------------- 個人頁面 (Profile) ----------------
+@app.get("/profile/{username}", response_class=HTMLResponse)
+def user_profile(request: Request, username: str, session: Session = Depends(get_session)):
+    target_user = session.exec(select(User).where(User.username == username)).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_reports = session.exec(select(Report).where(Report.user_id == target_user.id).order_by(Report.created_at.desc())).all()
+    user_comments = session.exec(select(Comment).where(Comment.user_id == target_user.id).order_by(Comment.created_at.desc())).all()
+
+    enriched_reports = []
+    for r in user_reports:
+        meeting = session.get(LabMeeting, r.meeting_id)
+        tags = get_report_tags(session, r)
+        enriched_reports.append({"r": r, "meeting": meeting, "tags": tags})
+
+    return templates.TemplateResponse(
+        "profile.html",
+        {
+            "request": request,
+            "target_user": target_user,
+            "reports": enriched_reports,
+            "comments": user_comments,
+            "current_user": get_current_user(request, session)
+        }
+    )
+
+# ---------------- 認證 (Auth) ----------------
 @app.get("/register", response_class=HTMLResponse)
 def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
 @app.post("/register")
-def register(request: Request, username: str = Form(...), display_name: str = Form(None), session = Depends(get_session)):
+def register(request: Request, username: str = Form(...), display_name: str = Form(None), session: Session = Depends(get_session)):
     exists = session.exec(select(User).where(User.username == username)).first()
     if exists:
-        return templates.TemplateResponse("register.html", {"request": request, "error": "username exists"})
-    u = User(username=username, display_name=display_name)
+        return templates.TemplateResponse("register.html", {"request": request, "error": "Username already exists"})
+    
+    u = User(username=username, display_name=display_name or username)
     session.add(u)
     session.commit()
     request.session["username"] = username
@@ -268,17 +469,15 @@ def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-def login(request: Request, username: str = Form(...), session = Depends(get_session)):
+def login(request: Request, username: str = Form(...), session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == username)).first()
-    auto_created = False
     if not user:
+        # 自動註冊 (Demo 用)
         user = User(username=username, display_name=username)
         session.add(user)
         session.commit()
-        auto_created = True
+    
     request.session["username"] = username
-    if auto_created:
-        return templates.TemplateResponse("index.html", {"request": request, "current_user": user, "info": "已自動建立帳號"})
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/logout")
@@ -286,19 +485,5 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/")
 
-# ---------------- comment ----------------
-@app.post("/comments")
-def create_comment(request: Request, report_id: int = Form(...), content: str = Form(...), session = Depends(get_session)):
-    username = request.session.get("username")
-    user = session.exec(select(User).where(User.username == username)).first() if username else None
-    if not user:
-        return RedirectResponse(url="/login")
-    c = Comment(report_id=report_id, user_id=user.id, content=content)
-    session.add(c)
-    session.commit()
-    return RedirectResponse(url=f"/reports/{report_id}", status_code=303)
-
-
-# ---------------- main ----------------
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

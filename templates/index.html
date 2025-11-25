@@ -1,31 +1,33 @@
 {% extends "_base.html" %}
-
 {% block content %}
-<h1>Reports</h1>
-<ul>
-  {% for item in reports %}
-  <li class="report">
-    <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
-    <div>{{ item.r.report_summary }}</div>
-    <div>
-      by {{ item.user.display_name if item.user else "Unknown" }} —
-      {{ item.r.created_at.strftime("%Y-%m-%d %H:%M") }}
-    </div>
-    <div>
-      {% if item.r.paper_id %}
-        {% if item.tags %}
-          Paper Tags:
-          {% for t in item.tags %}
-            <a href="/tags/{{ t.name }}">{{ t.name }}</a>{% if not loop.last %}, {% endif %}
-          {% endfor %}
-        {% else %}
-          Paper has no tags
-        {% endif %}
-      {% else %}
-        No associated paper
-      {% endif %}
-    </div>
-  </li>
-  {% endfor %}
-</ul>
+<h1>Recent Reports</h1>
+{% if reports %}
+    <ul>
+    {% for item in reports %}
+        <li>
+            <a href="/reports/{{ item.r.id }}" style="font-weight: bold; font-size: 1.1em;">
+                {{ item.r.report_title }}
+            </a>
+            <br>
+            <span class="meta">
+                by {{ item.user.display_name if item.user else "Unknown" }} 
+                | {{ item.r.created_at.strftime('%Y-%m-%d') }}
+                {% if item.meeting %} | Meeting: {{ item.meeting.meeting_title }}{% endif %}
+            </span>
+            <br>
+            {% if item.paper %}
+                📄 Paper: {{ item.paper.paper_title }}
+            {% endif %}
+            <div style="margin-top: 5px;">
+                {% for tag in item.tags %}
+                    <span style="background: #eee; padding: 2px 5px; font-size: 0.8em; border-radius: 4px;">#{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+        </li>
+        <br>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No reports yet.</p>
+{% endif %}
 {% endblock %}

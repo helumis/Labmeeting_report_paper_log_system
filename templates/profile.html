@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>👤 {{ target_user.display_name }}'s Profile</h1>
+
+<h3>My Reports</h3>
+{% if reports %}
+    <ul>
+    {% for item in reports %}
+        <li>
+            <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
+            <span class="meta">({{ item.r.created_at.strftime('%Y-%m-%d') }})</span>
+            {% if current_user and current_user.id == target_user.id %}
+                <a href="/reports/{{ item.r.id }}/edit">✏️</a>
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No reports yet.</p>
+{% endif %}
+
+<h3>My Comments</h3>
+{% if comments %}
+    <ul>
+    {% for c in comments %}
+        <li>
+            On Report #{{ c.report_id }}: "{{ c.content }}"
+            <span class="meta">({{ c.created_at.strftime('%Y-%m-%d') }})</span>
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No comments yet.</p>
+{% endif %}
+{% endblock %}

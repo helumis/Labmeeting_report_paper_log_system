@@ -8,23 +8,29 @@
   {% for item in reports %}
   <li class="report">
     <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
+    
     <div>{{ item.r.report_summary }}</div>
+    
     <div>
       by {{ item.user.display_name if item.user else "Unknown" }}
       — {{ item.r.created_at }}
     </div>
     
-<div>
-  {% if item.r.paper %}
-    Paper: {{ item.r.paper.paper_title }}
-    Authors:
-    {% for author in item.r.paper.authors %}
-      {{ author.name }}{% if not loop.last %}, {% endif %}
-    {% endfor %}
-  {% endif %}
-</div>
+    <div>
+      {% if item.r.paper_id %}
+        
+        Paper ID: {{ item.r.paper_id }} 
+        <span style="color: gray;">(Details not available in this list view)</span>
+      {% endif %}
+    </div>
 
-    
+    <div>
+      Tags:
+      {% for tag in item.tags %}
+        <a href="/tags/{{ tag.name }}" style="color: green;">#{{ tag.name }}</a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </div>
+
   </li>
   {% endfor %}
 </ul>

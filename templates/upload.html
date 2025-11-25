@@ -1,128 +1,61 @@
 {% extends "_base.html" %}
 {% block content %}
-<h1>Upload Report</h1>
-
+<h1>Upload New Report</h1>
 <form action="/upload" method="post">
+    <h3>Report Info</h3>
+    <label>Title: <input type="text" name="report_title" required style="width: 100%;"></label><br><br>
+    <label>Summary:<br><textarea name="report_summary" rows="3" style="width: 100%;"></textarea></label><br><br>
+    <label>Slides Link: <input type="url" name="slides_link" style="width: 100%;"></label><br>
 
-  <!-- -----------------------------------
-       基本 Report 欄位
-  ------------------------------------- -->
-  <h2>Report Info</h2>
-  <label>Report title: 
-    <input type="text" name="report_title" required>
-  </label><br>
-
-  <label>Summary:<br>
-    <textarea name="report_summary" rows="4"></textarea>
-  </label><br>
-
-  <label>Slides / Paper link:
-    <input type="url" name="slides_link">
-  </label><br>
-
-  <!-- -----------------------------------
-       LabMeeting
-  ------------------------------------- -->
-  <h2>Meeting</h2>
-  <p>Either choose existing or create new</p>
-
-  <label>Choose existing meeting:
+    <h3>Meeting</h3>
     <select name="existing_meeting_id">
-      <option value="">(none)</option>
-      {% for m in meetings %}
-      <option value="{{ m.id }}">{{ m.meeting_title }} ({{ m.meeting_date }})</option>
-      {% endfor %}
+        <option value="">-- Create New Meeting --</option>
+        {% for m in meetings %}
+        <option value="{{ m.id }}">{{ m.meeting_title }} ({{ m.meeting_date }})</option>
+        {% endfor %}
     </select>
-  </label><br>
+    <div style="border-left: 3px solid #ccc; padding-left: 10px; margin-top: 10px;">
+        <p>Or Create New:</p>
+        <input type="text" name="meeting_title" placeholder="Meeting Title">
+        <input type="date" name="meeting_date">
+        <input type="text" name="meeting_location" placeholder="Location">
+    </div>
 
-  <h3>Or create new meeting:</h3>
-  <label>Meeting title: <input type="text" name="meeting_title"></label><br>
-  <label>Meeting date : <input type="date" name="meeting_date"></label><br>
-  <label>Meeting location: <input type="text" name="meeting_location"></label><br>
-
-  <!-- -----------------------------------
-       Paper Section
-  ------------------------------------- -->
-  <h2>Paper</h2>
-
-  <!-- 選既有 Paper -->
-  <label>Choose existing paper:
-    <select name="paper_id">
-      <option value="">(none)</option>
-      {% for p in papers %}
-      <option value="{{ p.id }}">{{ p.paper_title }} ({{ p.published_year }})</option>
-      {% endfor %}
+    <h3>Paper</h3>
+    <select name="existing_paper_id">
+        <option value="">-- Create New Paper --</option>
+        {% for p in papers %}
+        <option value="{{ p.id }}">{{ p.paper_title }}</option>
+        {% endfor %}
     </select>
-  </label><br>
-
-  <h3>Or create new paper:</h3>
-
-  <label>Paper title: 
-    <input type="text" name="paper_title">
-  </label><br>
-
-  <label>Published year: 
-    <input type="number" name="published_year" min="1900" max="2100">
-  </label><br>
-
-  <label>Published month:
-    <input type="number" name="published_month" min="1" max="12">
-  </label><br>
-
-  <label>Journal or Conference:
-    <input type="text" name="journal_or_conference">
-  </label><br>
-
-  <!-- -----------------------------------
-       Authors & Affiliations
-  ------------------------------------- -->
-  <h2>Authors</h2>
-  <p>Enter authors in order. One row = one author.</p>
-  <p>For each author, list affiliations separated by commas.</p>
-
-  <table id="authors_table" border="1" cellpadding="5">
-    <tr>
-      <th>#</th>
-      <th>Author name</th>
-      <th>Affiliations (comma-separated)</th>
-    </tr>
-    <tr>
-      <td class="author-index">1</td>
-      <td><input type="text" name="author_name_0"></td>
-      <td><input type="text" name="author_affiliations_0" placeholder="Aff1, Aff2"></td>
-    </tr>
-  </table>
-
-  <br>
-  <button type="button" onclick="addAuthorRow()">Add Author</button>
-
-  <script>
-  let authorCount = 1;
-
-  function addAuthorRow() {
-    const table = document.getElementById("authors_table");
-
-    const newRow = document.createElement("tr");
-    newRow.innerHTML = `
-      <td class="author-index">${authorCount + 1}</td>
-      <td><input type="text" name="author_name_${authorCount}"></td>
-      <td><input type="text" name="author_affiliations_${authorCount}" placeholder="Aff1, Aff2"></td>
-    `;
-
-    table.appendChild(newRow);
-    authorCount += 1;
-  }
-  </script>
-
-  <!-- -----------------------------------
-       Tags
-  ------------------------------------- -->
-  <h2>Tags</h2>
-  <label>Tags (comma separated, for new paper):
-    <input type="text" name="tags">
-  </label><br><br>
-
-  <button type="submit">Create Report</button>
+    <div style="border-left: 3px solid #ccc; padding-left: 10px; margin-top: 10px;">
+        <p>Or Create New Paper:</p>
+        <input type="text" name="paper_title" placeholder="Paper Title" style="width: 100%;"><br><br>
+        Year: <input type="number" name="published_year" style="width: 60px;"> 
+        Month: <input type="number" name="published_month" style="width: 40px;"><br><br>
+        Venue: <input type="text" name="journal_or_conference"><br><br>
+        Tags: <input type="text" name="tags" placeholder="tag1, tag2"><br><br>
+        
+        <strong>Authors:</strong><br>
+        <div id="authors_container">
+            <div>
+                1. <input type="text" name="author_name_0" placeholder="Name">
+                <input type="text" name="author_affiliations_0" placeholder="Affiliations (comma sep)">
+            </div>
+        </div>
+        <button type="button" onclick="addAuthor()">+ Add Author</button>
+    </div>
+    <br><br>
+    <button type="submit" style="padding: 10px 20px;">Submit Report</button>
 </form>
 
+<script>
+let authCount = 1;
+function addAuthor() {
+    const div = document.createElement('div');
+    div.innerHTML = `${authCount+1}. <input type="text" name="author_name_${authCount}" placeholder="Name"> <input type="text" name="author_affiliations_${authCount}" placeholder="Affiliations">`;
+    document.getElementById('authors_container').appendChild(div);
+    authCount++;
+}
+</script>
 {% endblock %}

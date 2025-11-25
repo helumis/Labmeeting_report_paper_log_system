@@ -1,63 +1,74 @@
 {% extends "_base.html" %}
 {% block content %}
-
 <h1>{{ report.report_title }}</h1>
+<div class="meta">
+    Uploaded by: <a href="/profile/{{ user.username }}">{{ user.display_name }}</a>
+    on {{ report.created_at.strftime('%Y-%m-%d') }}
+</div>
+
+<h3>Summary</h3>
 <p>{{ report.report_summary }}</p>
+
 {% if report.slides_link %}
-<p>Slides / Paper link: <a href="{{ report.slides_link }}" target="_blank">{{ report.slides_link }}</a></p>
+<p>🔗 Slides: <a href="{{ report.slides_link }}" target="_blank">{{ report.slides_link }}</a></p>
 {% endif %}
-<p>Upload by: {{ user.display_name if user else "Unknown" }}</p>
-<p>Meeting: {{ meeting.meeting_title if meeting else "—" }}</p>
 
-{% if report.paper %}
-<h2>Paper Info</h2>
-<p>Title: {{ report.paper.paper_title }}</p>
-<p>Published: {{ report.paper.published_year }} / {{ report.paper.published_month }}</p>
-<p>Journal/Conference: {{ report.paper.journal_or_conference }}</p>
+{% if meeting %}
+<h3>Meeting Info</h3>
+<p>{{ meeting.meeting_title }} ({{ meeting.meeting_date }}) @ {{ meeting.meeting_location }}</p>
+{% endif %}
 
-{% if report.paper.authors %}
-<h3>Authors & Affiliations</h3>
+{% if paper %}
+<hr>
+<h3>Paper: {{ paper.paper_title }}</h3>
 <ul>
-  {% for author in report.paper.authors %}
-  <li>
-    {{ author.name }}
-    {% if author.affiliations %}
-      — Affiliations: 
-      {% for aff in author.affiliations %}
-        {{ aff.name }}{% if not loop.last %}, {% endif %}
-      {% endfor %}
-    {% endif %}
-  </li>
-  {% endfor %}
+    <li>Year: {{ paper.published_year }} / {{ paper.published_month }}</li>
+    <li>Venue: {{ paper.journal_or_conference }}</li>
+    <li>
+        Authors: 
+        {% for auth in paper.authors %}
+            {{ auth.name }}
+            <span class="meta">({{ auth.affiliations|map(attribute='name')|join(', ') }})</span>; 
+        {% endfor %}
+    </li>
+    <li>
+        Tags: {{ tags|map(attribute='name')|join(', ') }}
+    </li>
 </ul>
 {% endif %}
 
-{% if tags %}
-<p>Tags:
-  {% for t in tags %}
-    <a href="/tags/{{ t.name }}">{{ t.name }}</a>{% if not loop.last %}, {% endif %}
-  {% endfor %}
-</p>
-{% endif %}
+{% if current_user and current_user.id == report.user_id %}
+    <hr>
+    <a href="/reports/{{ report.id }}/edit"><button>✏️ Edit Report</button></a>
+    <form action="/reports/{{ report.id }}/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete this report?');">
+        <button type="submit" style="color: red;">🗑️ Delete Report</button>
+    </form>
 {% endif %}
 
 <hr>
-
 <h3>Comments</h3>
-<ul>
-  {% for c in comments %}
-    <li>{{ c.content }} — {{ c.created_at.strftime("%Y-%m-%d %H:%M") }} ({{ c.user.display_name if c.user else "Unknown" }})</li>
-  {% endfor %}
-</ul>
+{% for item in comments %}
+    <div style="background: #f9f9f9; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+        <strong>{{ item.user.display_name }}</strong>: {{ item.c.content }}
+        <div class="meta" style="margin-top: 5px;">
+            {{ item.c.created_at.strftime('%Y-%m-%d %H:%M') }}
+            {% if current_user and current_user.id == item.c.user_id %}
+                <form action="/comments/{{ item.c.id }}/delete" method="post" style="display:inline; float: right;">
+                    <button type="submit" style="font-size: 0.8em; color: red;">Delete</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+{% endfor %}
 
 {% if current_user %}
-<form action="/comments" method="post">
-  <input type="hidden" name="report_id" value="{{ report.id }}">
-  <textarea name="content" rows="3" cols="60" placeholder="Write a comment..."></textarea><br>
-  <button type="submit">Post Comment</button>
-</form>
+    <form action="/comments" method="post" style="margin-top: 20px;">
+        <input type="hidden" name="report_id" value="{{ report.id }}">
+        <textarea name="content" rows="3" style="width: 100%;" placeholder="Add a comment..." required></textarea><br>
+        <button type="submit" style="margin-top: 5px;">Post Comment</button>
+    </form>
 {% else %}
-<p><a href="/login">Login</a> to comment.</p>
+    <p><a href="/login">Login</a> to leave a comment.</p>
 {% endif %}
 
 {% endblock %}
