@@ -2,9 +2,9 @@
 {% block content %}
 <h1>Register</h1>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form action="/register" method="post">
-    Username: <input type="text" name="username" required><br><br>
-    Display Name: <input type="text" name="display_name"><br><br>
-    <button type="submit">Register</button>
+<form action="/register" method="post" class="auth-form">
+    <label>Username: <input type="text" name="username" required></label><br><br>
+    <label>Display Name: <input type="text" name="display_name"></label><br><br>
+    <button type="submit" class="primary-button">Register</button>
 </form>
 {% endblock %}

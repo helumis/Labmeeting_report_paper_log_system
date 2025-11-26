@@ -21,8 +21,7 @@
 {% if paper %}
 <hr>
 <h3>Paper: {{ paper.paper_title }}</h3>
-<ul>
-    <li>
+<ul class="paper-details-list"> <li>
         Year: 
         <a href="/years/{{ paper.published_year }}">{{ paper.published_year }}</a> / {{ paper.published_month }}
     </li>
@@ -35,10 +34,10 @@
     <li>
         Authors: 
         {% for auth in paper.authors %}
-            <a href="/authors/{{ auth.id }}" style="font-weight: bold;">{{ auth.name }}</a>
+            <a href="/authors/{{ auth.id }}" class="author-name-link">{{ auth.name }}</a>
             <span class="meta">
             ({% for aff in auth.affiliations %}
-                <a href="/affiliations/{{ aff.id }}" style="font-size: 0.9em; color: #6c757d;">
+                <a href="/affiliations/{{ aff.id }}" class="affiliation-link">
                     {{ aff.name }}
                 </a>{{ ", " if not loop.last else "" }}
             {% endfor %})</span>{% if not loop.last %}; {% endif %} 
@@ -47,7 +46,7 @@
     <li>
         Tags: 
         {% for tag in tags %}
-            <a href="/tags/{{ tag.id }}" style="background: #007bff; color: white; padding: 2px 5px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+            <a href="/tags/{{ tag.id }}" class="tag-style">
                 #{{ tag.name }}
             </a>
         {% endfor %}
@@ -58,22 +57,20 @@
 {% if current_user and current_user.id == report.user_id %}
     <hr>
     <a href="/reports/{{ report.id }}/edit"><button>✏️ Edit Report</button></a>
-    <form action="/reports/{{ report.id }}/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete this report?');">
-        <button type="submit" style="color: red;">🗑️ Delete Report</button>
+    <form action="/reports/{{ report.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Delete this report?');">
+        <button type="submit" class="delete-button">🗑️ Delete Report</button>
     </form>
 {% endif %}
 
 <hr>
 <h3>Comments</h3>
-{# Comment 區塊保持不變 #}
 {% for item in comments %}
-    <div style="background: #f9f9f9; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-        <a href="/profile/{{ item.user.username }}" style="font-weight: bold;">{{ item.user.display_name }}</a>: {{ item.c.content }}
-        <div class="meta" style="margin-top: 5px;">
+    <div class="comment-block"> <a href="/profile/{{ item.user.username }}" class="author-name-link">{{ item.user.display_name }}</a>: {{ item.c.content }}
+        <div class="meta comment-meta">
             {{ item.c.created_at.strftime('%Y-%m-%d %H:%M') }}
             {% if current_user and current_user.id == item.c.user_id %}
-                <form action="/comments/{{ item.c.id }}/delete" method="post" style="display:inline; float: right;">
-                    <button type="submit" style="font-size: 0.8em; color: red;">Delete</button>
+                <form action="/comments/{{ item.c.id }}/delete" method="post" class="inline-form comment-delete-form">
+                    <button type="submit" class="delete-button-small">Delete</button>
                 </form>
             {% endif %}
         </div>
@@ -81,10 +78,10 @@
 {% endfor %}
 
 {% if current_user %}
-    <form action="/comments" method="post" style="margin-top: 20px;">
+    <form action="/comments" method="post" class="comment-form">
         <input type="hidden" name="report_id" value="{{ report.id }}">
-        <textarea name="content" rows="3" style="width: 100%;" placeholder="Add a comment..." required></textarea><br>
-        <button type="submit" style="margin-top: 5px;">Post Comment</button>
+        <textarea name="content" rows="3" placeholder="Add a comment..." required></textarea><br>
+        <button type="submit" class="post-comment-button">Post Comment</button>
     </form>
 {% else %}
     <p><a href="/login">Login</a> to leave a comment.</p>

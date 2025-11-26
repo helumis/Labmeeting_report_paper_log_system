@@ -173,22 +173,28 @@ ul > li > a {
     margin-bottom: var(--spacing-sm);
 }
 
-/* 标签样式 (Tags) */
+/* 标签样式 (Tags) - 优化后：边框+透明背景 */
 .tag-style {
-    background-color: var(--color-accent); 
+    /* 默认：透明背景，文字使用强调色，边框使用强调色 */
+    background-color: transparent; 
     padding: 3px 8px;
     font-size: 0.85em; 
-    border-radius: 12px; /* 更圆润的标签 */
+    border-radius: 12px; 
     text-decoration: none; 
-    color: var(--color-bg-main); /* 标签文字使用白色 */
+    color: var(--color-accent); /* 文字使用强调色 */
+    border: 1px solid var(--color-accent); /* 添加强调色边框 */
     margin-right: var(--spacing-sm);
     display: inline-block;
     margin-top: var(--spacing-sm);
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease; /* 确保所有过渡效果都平滑 */
 }
 
 .tag-style:hover {
-    background-color: var(--color-primary); /* 标签悬停时使用主要色 */
+    /* 悬停：背景填充为强调色，文字变为白色，实现"反色"效果 */
+    background-color: var(--color-accent); 
+    color: var(--color-bg-main); /* 文字变为白色 */
+    /* 边框保持不变，也可以选择使用主要色来突出 */
+    border-color: var(--color-accent); 
 }
 
 /* 评论区样式 */
@@ -212,4 +218,123 @@ textarea {
 textarea:focus {
     border-color: var(--color-accent);
     outline: none;
+}
+/* ---------------------------------------------------- */
+/* 6. 表单与功能区块样式 (Forms & Functional Blocks) */
+/* ---------------------------------------------------- */
+
+/* 全局输入框和文本域标准化 */
+input[type="text"], input[type="url"], input[type="number"], input[type="date"], textarea, select {
+    font-family: var(--font-body);
+    font-weight: 300;
+    padding: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    /* 统一设置宽度，避免大量内联 width: 100% */
+    width: 100%; 
+    box-sizing: border-box; 
+    margin-top: 5px;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px rgba(81, 163, 163, 0.2); /* 强调色光晕 */
+    outline: none;
+}
+
+/* 局部宽度调整 */
+.input-year { width: 80px; }
+.input-month { width: 60px; }
+
+/* 按钮变体 */
+.primary-button-large {
+    background-color: var(--color-accent);
+    color: var(--color-bg-main);
+    border: 1px solid var(--color-accent);
+    padding: 12px 25px;
+    font-size: 1.1em;
+    font-weight: 700;
+}
+.primary-button-large:hover {
+    background-color: var(--color-primary); /* 悬停颜色切换 */
+    border-color: var(--color-primary);
+}
+
+.secondary-button {
+    background-color: transparent;
+    color: var(--color-accent);
+    border: 1px dashed var(--color-accent);
+}
+.secondary-button:hover {
+    background-color: rgba(81, 163, 163, 0.05);
+}
+
+.delete-button, .delete-button-small {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+}
+.delete-button:hover, .delete-button-small:hover {
+    background-color: var(--color-primary);
+    color: var(--color-bg-main);
+}
+.delete-button-small {
+    padding: 5px 10px;
+    font-size: 0.8em;
+}
+
+/* 报告详情页的内联布局修正 */
+.inline-form {
+    display: inline;
+    margin-left: 10px;
+}
+.author-name-link {
+    font-weight: 700;
+    color: var(--color-text-main); /* 确保作者名字突出 */
+}
+.author-name-link:hover {
+    color: var(--color-accent);
+}
+
+/* 评论区块标准化 (替换内联样式) */
+.comment-block {
+    background-color: var(--color-card-bg);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-left: 3px solid var(--color-accent); 
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    border-radius: 4px;
+}
+.comment-meta {
+    margin-top: 5px;
+}
+.comment-delete-form {
+    float: right;
+}
+
+/* 编辑/上传页面的特殊区块 */
+.paper-option-block {
+    background-color: var(--color-card-bg);
+    padding: var(--spacing-md);
+    border-radius: 8px;
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-soft);
+}
+.paper-edit-block {
+    border-left: 4px solid var(--color-accent); 
+    padding-left: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.form-row-inline input {
+    width: auto; /* 覆盖 input[type] 的 100% 宽度 */
+    display: inline-block;
+}
+.author-row {
+    margin-top: 10px;
+}
+.author-row input {
+    width: 30%; /* 优化作者输入框布局 */
+    margin-right: 10px;
 }

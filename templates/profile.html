@@ -4,13 +4,13 @@
 
 <h3>Reports</h3>
 {% if reports %}
-    <ul>
+    <ul class="profile-list">
     {% for item in reports %}
         <li>
             <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
             <span class="meta">({{ item.r.created_at.strftime('%Y-%m-%d') }})</span>
             {% if current_user and current_user.id == target_user.id %}
-                <a href="/reports/{{ item.r.id }}/edit">✏️</a>
+                <a href="/reports/{{ item.r.id }}/edit" class="edit-icon">✏️</a>
             {% endif %}
         </li>
     {% endfor %}
@@ -21,9 +21,9 @@
 
 <h3>Comments</h3>
 {% if comments %}
-    <ul>
+    <ul class="profile-list">
     {% for c in comments %}
-        <li>
+        <li class="comment-summary-item">
             On Report #{{ c.report_id }}: "{{ c.content }}"
             <span class="meta">({{ c.created_at.strftime('%Y-%m-%d') }})</span>
         </li>
