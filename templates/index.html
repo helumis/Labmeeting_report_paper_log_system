@@ -1,19 +1,5 @@
 {% extends "_base.html" %}
 {% block content %}
-
-<h1>
-    {% if filter_msg %}
-        {{ filter_msg }} 
-    {% else %}
-        Recent Reports
-    {% endif %}
-</h1>
-
-{% if filter_msg %}
-    <a href="/" style="margin-left: 10px; color: #dc3545; text-decoration: none; font-weight: bold;">[X] 清除篩選</a>
-</div>
-{% endif %}
-
 {% if reports %}
     <ul>
     {% for item in reports %}
@@ -34,8 +20,7 @@
             <div style="margin-top: 5px;">
                 {% for tag in item.tags %}
                     <a href="/tags/{{ tag.id }}" 
-                       style="background: #e9ecef; padding: 2px 5px; font-size: 0.8em; border-radius: 4px; text-decoration: none; color: #007bff; margin-right: 5px;">
-                        #{{ tag.name }}
+                       class="tag-style"> #{{ tag.name }}
                     </a>
                 {% endfor %}
             </div>
@@ -44,6 +29,5 @@
     {% endfor %}
     </ul>
 {% else %}
-    <p>No reports found.</p>
 {% endif %}
 {% endblock %}

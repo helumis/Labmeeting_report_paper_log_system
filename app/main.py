@@ -17,8 +17,12 @@ from .models import (
     Author, Affiliation, AuthorAffiliationLink,
     PaperAuthorLink, PaperTag
 )
-
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 app = FastAPI()
+BASE_DIR = Path(__file__).resolve().parent
+
+app.mount("/css", StaticFiles(directory="app/css"), name="css")
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 templates = Jinja2Templates(directory="templates")
 

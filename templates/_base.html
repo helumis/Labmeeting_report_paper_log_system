@@ -3,21 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Lab Meeting System</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
-        nav a { margin-right: 15px; text-decoration: none; color: #007bff; }
-        hr { margin: 2rem 0; border: 0; border-top: 1px solid #eee; }
-        .error { color: red; }
-        .meta { color: gray; font-size: 0.9em; }
-        button { cursor: pointer; }
-    </style>
+    <link rel="stylesheet" href="/css/luxury_system.css"> 
 </head>
 <body>
     <nav>
         <a href="/">🏠 Home</a>
         {% if current_user %}
             <a href="/upload">➕ New Report</a>
-            <a href="/profile/{{ current_user.username }}">👤 My Profile ({{ current_user.display_name }})</a>
+            <a href="/profile/{{ current_user.username }}">👤 Account Profile ({{ current_user.display_name }})</a>
             <a href="/logout">🚪 Logout</a>
         {% else %}
             <a href="/login">🔑 Login</a>
