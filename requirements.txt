@@ -9,3 +9,5 @@ python-multipart
 starlette
 itsdangerous
 pydantic_settings
+passlib
+bcrypt==4.0.1

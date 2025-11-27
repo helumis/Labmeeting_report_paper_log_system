@@ -61,8 +61,9 @@ class Paper(SQLModel, table=True):
 # ----------------------------
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    username: str
+    username: str = Field(index=True, unique=True)
     display_name: Optional[str] = None
+    hashed_password: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     reports: List["Report"] = Relationship(back_populates="user")

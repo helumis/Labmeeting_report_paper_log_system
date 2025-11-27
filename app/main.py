@@ -8,6 +8,7 @@ from sqlmodel import select, Session, delete
 from typing import List, Optional
 import uvicorn
 from datetime import datetime
+from .security import get_password_hash, verify_password
 
 # 假設這些模組存在於您的專案結構中
 from .config import settings
@@ -34,10 +35,10 @@ def on_startup():
 # ---------------- helpers ----------------
 def get_current_user(request: Request, session: Session = Depends(get_session)) -> Optional[User]:
     """取得當前登入的使用者"""
-    username = request.session.get("username")
-    if not username:
+    user_id = request.session.get("user_id")
+    if not user_id:
         return None
-    user = session.exec(select(User).where(User.username == username)).first()
+    user = session.get(User, user_id)
     return user
 
 def get_report_tags(session: Session, report: Report) -> List[Tag]:
@@ -609,15 +610,34 @@ def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
 @app.post("/register")
-def register(request: Request, username: str = Form(...), display_name: str = Form(None), session: Session = Depends(get_session)):
+def register(
+    request: Request, 
+    username: str = Form(...), 
+    password: str = Form(...),  # 新增：接收密碼
+    display_name: str = Form(None), 
+    session: Session = Depends(get_session)
+):
+    # 1. 檢查帳號是否存在
     exists = session.exec(select(User).where(User.username == username)).first()
     if exists:
-        return templates.TemplateResponse("register.html", {"request": request, "error": "Username already exists"})
+        return templates.TemplateResponse("register.html", {
+            "request": request, 
+            "error": "Username already exists"
+        })
     
-    u = User(username=username, display_name=display_name or username)
+    # 2. 加密密碼並建立使用者
+    hashed_pwd = get_password_hash(password)
+    u = User(
+        username=username, 
+        display_name=display_name or username,
+        hashed_password=hashed_pwd # 存入加密後的密碼
+    )
     session.add(u)
     session.commit()
-    request.session["username"] = username
+    session.refresh(u)
+    
+    # 3. 註冊成功後直接登入 (寫入 session)
+    request.session["user_id"] = u.id
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/login", response_class=HTMLResponse)
@@ -625,21 +645,30 @@ def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-def login(request: Request, username: str = Form(...), session: Session = Depends(get_session)):
+def login(
+    request: Request, 
+    username: str = Form(...), 
+    password: str = Form(...), # 新增：接收密碼
+    session: Session = Depends(get_session)
+):
+    # 1. 尋找使用者
     user = session.exec(select(User).where(User.username == username)).first()
-    if not user:
-        # 自動註冊 (Demo 用)
-        user = User(username=username, display_name=username)
-        session.add(user)
-        session.commit()
     
-    request.session["username"] = username
+    # 2. 驗證帳號與密碼 (不再自動註冊)
+    if not user or not verify_password(password, user.hashed_password):
+        return templates.TemplateResponse("login.html", {
+            "request": request, 
+            "error": "帳號或密碼錯誤"
+        })
+    
+    # 3. 登入成功，寫入 Session (改存 user_id)
+    request.session["user_id"] = user.id
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/")
+    return RedirectResponse(url="/login", status_code=303)
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

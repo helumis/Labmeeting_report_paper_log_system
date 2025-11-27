@@ -1,10 +1,35 @@
 {% extends "_base.html" %}
+
 {% block content %}
 <h1>Register</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+{# 顯示錯誤訊息 (例如帳號已存在) #}
+{% if error %}
+    <p class="error" style="color: red;">{{ error }}</p>
+{% endif %}
+
 <form action="/register" method="post" class="auth-form">
-    <label>Username: <input type="text" name="username" required></label><br><br>
-    <label>Display Name: <input type="text" name="display_name"></label><br><br>
+    {# 1. 帳號欄位 #}
+    <label>
+        Username: 
+        <input type="text" name="username" required>
+    </label>
+    <br><br>
+
+    {# 2. 新增：密碼欄位 (必須加入這段) #}
+    <label>
+        Password: 
+        <input type="password" name="password" required placeholder="設定您的密碼">
+    </label>
+    <br><br>
+
+    {# 3. 顯示名稱 (選填) #}
+    <label>
+        Display Name: 
+        <input type="text" name="display_name" placeholder="顯示的暱稱 (選填)">
+    </label>
+    <br><br>
+
     <button type="submit" class="primary-button">Register</button>
 </form>
 {% endblock %}

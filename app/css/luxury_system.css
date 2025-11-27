@@ -338,3 +338,45 @@ input:focus, textarea:focus, select:focus {
     width: 30%; /* 优化作者输入框布局 */
     margin-right: 10px;
 }
+
+/* ---------------------------------------------------- */
+/* 7. 統一篩選標籤樣式 (Filter Tags) */
+/* ---------------------------------------------------- */
+
+.filter-tag-container {
+    padding: var(--spacing-md) 0;
+    margin-bottom: var(--spacing-md);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.filter-tag {
+    /* 基礎樣式：比 Paper Tag 更明顯 */
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 5px var(--spacing-sm) 5px 0;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.95em;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    
+    /* 視覺風格：透明背景，主要色邊框 */
+    background-color: transparent;
+    color: var(--color-primary); /* 文字使用主要色 (Light Coral) */
+    border: 1px solid var(--color-primary); /* 邊框使用主要色 */
+}
+
+.filter-tag:hover {
+    /* 懸停效果：背景填充主要色，文字變白 */
+    background-color: var(--color-primary);
+    color: var(--color-bg-main);
+    box-shadow: 0 2px 5px rgba(221, 115, 115, 0.4);
+}
+
+/* 針對當前選中的篩選標籤（如果需要突出顯示） */
+.filter-tag.is-active {
+    background-color: var(--color-accent); /* 換成強調色 */
+    color: var(--color-bg-main);
+    border-color: var(--color-accent);
+    cursor: default;
+}

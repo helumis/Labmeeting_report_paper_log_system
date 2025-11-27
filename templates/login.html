@@ -1,8 +1,32 @@
 {% extends "_base.html" %}
+
 {% block content %}
 <h1>Login</h1>
+
+{# 1. 新增錯誤訊息顯示區塊：如果後端有傳送 error 變數，就顯示出來 #}
+{% if error %}
+    <div style="color: red; margin-bottom: 10px; font-weight: bold;">
+        {{ error }}
+    </div>
+{% endif %}
+
 <form action="/login" method="post" class="auth-form">
-    <label>Username: <input type="text" name="username" required></label>
-    <button type="submit" class="primary-button">Login</button>
+    <label>
+        Username: 
+        <input type="text" name="username" required>
+    </label>
+    
+    {# 2. 新增密碼輸入欄位 (name="password" 對應後端 Form 參數) #}
+    <label style="display: block; margin-top: 10px;">
+        Password: 
+        <input type="password" name="password" required>
+    </label>
+
+    <button type="submit" class="primary-button" style="margin-top: 15px;">Login</button>
 </form>
+
+{# 3. (選用) 貼心小連結：如果還沒註冊，導引去註冊頁面 #}
+<p style="margin-top: 20px;">
+    No account yet? <a href="/register">Register here</a>
+</p>
 {% endblock %}
