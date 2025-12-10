@@ -7,6 +7,11 @@
 </head>
 <body>
     <nav>
+        <form action="/search" method="get" style="display: inline-flex; align-items: center; margin-left: 20px;">
+    <input type="text" name="q" placeholder="搜尋論文、作者、Tag..." required 
+           style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+    <button type="submit" class="primary-button" style="padding: 5px 10px; margin-left: 5px;">Search</button>
+</form>
         <a href="/">🏠 Home</a>
         {% if current_user %}
             <a href="/upload">➕ New Report</a>

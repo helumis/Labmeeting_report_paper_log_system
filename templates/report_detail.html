@@ -18,36 +18,47 @@
 <p>{{ meeting.meeting_title }} ({{ meeting.meeting_date }}) @ {{ meeting.meeting_location }}</p>
 {% endif %}
 
-{% if paper %}
+{% if enriched_paper_data %}
+{% set paper = enriched_paper_data.paper %}
 <hr>
 <h3>Paper: {{ paper.paper_title }}</h3>
-<ul class="paper-details-list"> <li>
+<ul class="paper-details-list"> 
+    <li>
         Year: 
-        <a href="/years/{{ paper.published_year }}">{{ paper.published_year }}</a> / {{ paper.published_month }}
+        <a href="/years/{{ paper.published_year }}" class="tag-style">
+             <span class="count-badge">{{ enriched_paper_data.year_count }}</span>
+            {{ paper.published_year }}
+        </a> / {{ paper.published_month }}
     </li>
     <li>
         Venue: 
-    <a href="/venues/{{ paper.journal_or_conference|urlencode }}">
-        {{ paper.journal_or_conference }}
-    </a>
+        <a href="/venues/{{ paper.journal_or_conference|urlencode }}" class="tag-style">
+             <span class="count-badge">{{ enriched_paper_data.venue_count }}</span>
+            {{ paper.journal_or_conference }}
+        </a>
     </li>
     <li>
         Authors: 
-        {% for auth in paper.authors %}
-            <a href="/authors/{{ auth.id }}" class="author-name-link">{{ auth.name }}</a>
+        {% for item in enriched_paper_data.authors %}
+            <a href="/authors/{{ item.auth.id }}" class="author-name-link tag-style">
+                <span class="count-badge">{{ item.count }}</span>
+                {{ item.auth.name }}
+            </a>
             <span class="meta">
-            ({% for aff in auth.affiliations %}
-                <a href="/affiliations/{{ aff.id }}" class="affiliation-link">
-                    {{ aff.name }}
+            ({% for aff_item in item.affiliations %}
+                <a href="/affiliations/{{ aff_item.aff.id }}" class="affiliation-link tag-style">
+                     <span class="count-badge">{{ aff_item.count }}</span>
+                    {{ aff_item.aff.name }}
                 </a>{{ ", " if not loop.last else "" }}
             {% endfor %})</span>{% if not loop.last %}; {% endif %} 
         {% endfor %}
     </li>
     <li>
         Tags: 
-        {% for tag in tags %}
-            <a href="/tags/{{ tag.id }}" class="tag-style">
-                #{{ tag.name }}
+        {% for item in enriched_paper_data.tags %}
+            <a href="/tags/{{ item.tag.id }}" class="tag-style">
+                <span class="count-badge">{{ item.count }}</span>
+                #{{ item.tag.name }}
             </a>
         {% endfor %}
     </li>

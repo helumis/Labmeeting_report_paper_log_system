@@ -1,3 +1,4 @@
+#models.py
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime, date
@@ -86,8 +87,14 @@ class LabMeeting(SQLModel, table=True):
 class Tag(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
+    
+    # *** 修正 1: 解決重複表格定義錯誤 ***
+    __table_args__ = {'extend_existing': True} 
 
     papers: List[Paper] = Relationship(back_populates="tags", link_model=PaperTag)
+    
+    # *** 修正 2: 加入 TagCountSnapshot 的反向關聯 ***
+    snapshot: Optional["TagCountSnapshot"] = Relationship(back_populates="tag")
 
 # ----------------------------
 # Report
@@ -118,3 +125,16 @@ class Comment(SQLModel, table=True):
 
     report: Optional[Report] = Relationship(back_populates="comments")
     user: Optional[User] = Relationship(back_populates="comments")
+# app/models.py (新增部分)
+
+# ----------------------------
+# TagCountSnapshot - 儲存標籤的使用快照計數
+# ----------------------------
+class TagCountSnapshot(SQLModel, table=True):
+    # 這裡假設 tag_id 是唯一的，且對應 Tag 表的 id
+    tag_id: int = Field(foreign_key="tag.id", primary_key=True) 
+    count: int = Field(default=0)
+    last_updated: datetime = Field(default_factory=datetime.utcnow) 
+
+    tag: Optional[Tag] = Relationship(back_populates="snapshot")
+
