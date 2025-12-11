@@ -1,0 +1,66 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>{{ meeting.meeting_title }}</h1>
+
+<div class="meeting-info-box">
+    <div class="info-row">
+        <strong>Date:</strong> {{ meeting.meeting_date }}
+    </div>
+    <div class="info-row">
+        <strong>Location:</strong> {{ meeting.meeting_location or 'Not specified' }}
+    </div>
+    <div class="info-row">
+        <strong>Statistics:</strong>
+        <span class="badge">{{ stats.total_reports }} reports</span>
+        <span class="badge">{{ stats.unique_presenters }} presenters</span>
+        <span class="badge">{{ stats.reports_with_papers }} with papers</span>
+    </div>
+</div>
+
+{% if current_user %}
+<div class="action-buttons">
+    <a href="/meetings/{{ meeting.id }}/edit" class="secondary-button">✏️ Edit Meeting</a>
+    <form action="/meetings/{{ meeting.id }}/delete" method="post" class="inline-form" 
+          onsubmit="return confirm('Delete this meeting?');">
+        <button type="submit" class="delete-button">🗑️ Delete Meeting</button>
+    </form>
+</div>
+{% endif %}
+
+<hr>
+
+<h2>Reports in This Meeting</h2>
+{% if reports %}
+<div class="reports-list">
+    {% for item in reports %}
+    <div class="report-card">
+        <h3>
+            <a href="/reports/{{ item.r.id }}">{{ item.r.report_title }}</a>
+        </h3>
+        <div class="meta">
+            by <a href="/profile/{{ item.user.username }}">{{ item.user.display_name }}</a>
+            on {{ item.r.created_at.strftime('%Y-%m-%d') }}
+        </div>
+        {% if item.paper %}
+        <div class="paper-info">
+            📄 <strong>{{ item.paper.paper_title }}</strong>
+            {% if item.tags %}
+            <div class="tags">
+                {% for tag in item.tags %}
+                <a href="/tags/{{ tag.id }}" class="tag">#{{ tag.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">No reports in this meeting yet.</p>
+{% endif %}
+
+<div class="back-link">
+    <a href="/meetings">← Back to All Meetings</a>
+</div>
+{% endblock %}

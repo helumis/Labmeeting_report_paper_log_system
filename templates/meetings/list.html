@@ -1,0 +1,46 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>Lab Meetings</h1>
+    {% if current_user %}
+    <a href="/meetings/create" class="primary-button">➕ Create New Meeting</a>
+    {% endif %}
+</div>
+
+{% if meetings %}
+<div class="meetings-grid">
+    {% for item in meetings %}
+    <div class="meeting-card">
+        <h3>
+            <a href="/meetings/{{ item.meeting.id }}">{{ item.meeting.meeting_title }}</a>
+        </h3>
+        <div class="meta">
+            📅 {{ item.meeting.meeting_date }}
+            {% if item.meeting.meeting_location %}
+            | 📍 {{ item.meeting.meeting_location }}
+            {% endif %}
+        </div>
+        <div class="meeting-stats">
+            <span class="badge">{{ item.report_count }} reports</span>
+        </div>
+        
+        {% if item.reports %}
+        <div class="recent-reports">
+            <strong>Recent Reports:</strong>
+            <ul>
+                {% for report in item.reports %}
+                <li>
+                    <a href="/reports/{{ report.r.id }}">{{ report.r.report_title }}</a>
+                    <span class="meta">by {{ report.user.display_name }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">No meetings yet. Create your first meeting!</p>
+{% endif %}
+{% endblock %}

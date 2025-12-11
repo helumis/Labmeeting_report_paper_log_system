@@ -1,74 +1,155 @@
+<!-- ========================================
+     templates/upload.html - 上傳報告（保持不變）
+     ======================================== -->
 {% extends "_base.html" %}
 {% block content %}
 <h1>Upload New Report</h1>
 <form action="/upload" method="post" class="main-form">
+    <!-- Report Info -->
     <h3>Report Info</h3>
-    <label class="full-width-label">Title: <input type="text" name="report_title" required></label><br><br>
-    <label class="full-width-label">Summary:<br><textarea name="report_summary" rows="3"></textarea></label><br><br>
-    <label class="full-width-label">Slides Link: <input type="url" name="slides_link"></label><br>
+    <label class="full-width-label">
+        Title: 
+        <input type="text" name="report_title" required>
+    </label>
+    <br><br>
 
+    <label class="full-width-label">
+        Summary:<br>
+        <textarea name="report_summary" rows="3"></textarea>
+    </label>
+    <br><br>
+
+    <label class="full-width-label">
+        Slides Link: 
+        <input type="url" name="slides_link">
+    </label>
+
+    <!-- Meeting Section -->
     <h3>Meeting</h3>
-    <select name="existing_meeting_id" class="select-option">
-        <option value="">-- Create New Meeting --</option>
-        {% for m in meetings %}
-        <option value="{{ m.id }}">{{ m.meeting_title }} ({{ m.meeting_date }})</option>
-        {% endfor %}
-    </select>
-    <div class="option-toggle-block"> <p>Or Create New:</p>
-        <input type="text" name="meeting_title" placeholder="Meeting Title">
-        <input type="date" name="meeting_date">
-        <input type="text" name="meeting_location" placeholder="Location">
+    <div class="form-section">
+        <label><strong>Option 1: Select Existing Meeting</strong></label>
+        <select name="existing_meeting_id" class="select-option">
+            <option value="">-- Create New Meeting --</option>
+            {% for m in meetings %}
+            <option value="{{ m.id }}">{{ m.meeting_title }} ({{ m.meeting_date }})</option>
+            {% endfor %}
+        </select>
     </div>
 
-    <h3>Paper</h3>
-    <select name="existing_paper_id" class="select-option">
-        <option value="">-- Create New Paper --</option>
-        {% for p in papers %}
-        <option value="{{ p.id }}">{{ p.paper_title }}</option>
-        {% endfor %}
-    </select>
-    <div class="option-toggle-block"> <p>Or Create New Paper:</p>
-        <label class="full-width-label"><input type="text" name="paper_title" placeholder="Paper Title"></label><br><br>
+    <div class="option-toggle-block">
+        <label><strong>Option 2: Create New Meeting</strong></label>
+        <p class="meta">Fill in the fields below to create a new meeting</p>
+        
+        <label class="full-width-label">
+            Meeting Title:
+            <input type="text" name="meeting_title" placeholder="e.g., Weekly Lab Meeting #42">
+        </label>
+        <br>
         
         <div class="form-row-inline">
-            Year: <input type="number" name="published_year" class="input-year" placeholder="Year">
-            Month: <input type="number" name="published_month" class="input-month" placeholder="Month">
+            <label>
+                Date:
+                <input type="date" name="meeting_date">
+            </label>
+            <label>
+                Location:
+                <input type="text" name="meeting_location" placeholder="Conference Room A">
+            </label>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Paper Section -->
+    <h3>Paper</h3>
+    <div class="form-section">
+        <label><strong>Option 1: Select Existing Paper</strong></label>
+        <select name="existing_paper_id" class="select-option">
+            <option value="">-- Create New Paper --</option>
+            {% for p in papers %}
+            <option value="{{ p.id }}">{{ p.paper_title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="option-toggle-block">
+        <label><strong>Option 2: Create New Paper</strong></label>
+        <p class="meta">Fill in the fields below to create a new paper</p>
+
+        <label class="full-width-label">
+            Paper Title:
+            <input type="text" name="paper_title" placeholder="Paper Title">
+        </label>
+        <br><br>
+        
+        <div class="form-row-inline">
+            <label>
+                Year: 
+                <input type="number" name="published_year" class="input-year" placeholder="2024" min="1900" max="2100">
+            </label>
+            <label>
+                Month: 
+                <input type="number" name="published_month" class="input-month" placeholder="12" min="1" max="12">
+            </label>
         </div>
         <br><br>
 
-        <label class="full-width-label">Venue: <input type="text" name="journal_or_conference"></label><br><br>
-        <label class="full-width-label">Tags: <input type="text" name="tags" placeholder="tag1, tag2"></label><br><br>
+        <label class="full-width-label">
+            Venue (Journal/Conference): 
+            <input type="text" name="journal_or_conference" placeholder="e.g., Nature, CVPR 2024">
+        </label>
+        <br><br>
+
+        <label class="full-width-label">
+            Tags (comma separated): 
+            <input type="text" name="tags" placeholder="machine-learning, computer-vision">
+        </label>
+        <br><br>
         
         <strong>Authors:</strong><br>
         <div id="authors_container">
             <div class="author-row">
-                1. <input type="text" name="author_name_0" placeholder="Name">
-                <input type="text" name="author_affiliations_0" placeholder="Affiliations (comma sep)">
+                1. 
+                <input type="text" name="author_name_0" placeholder="Author Name">
+                <input type="text" name="author_affiliations_0" placeholder="University A, Company B" size="40">
             </div>
         </div>
         <button type="button" onclick="addAuthor()" class="secondary-button">+ Add Author</button>
     </div>
+
     <br><br>
     <button type="submit" class="primary-button-large">Submit Report</button>
+    <a href="/" class="cancel-link">Cancel</a>
 </form>
 
 <script>
-    function addAuthor() {
-        const container = document.getElementById('authors_container');
-        // 获取当前容器内的作者行数，这直接作为新作者的索引 (0, 1, 2...)
-        const currentIndex = container.children.length; 
-        
-        const div = document.createElement('div');
-        div.className = 'author-row';
+function addAuthor() {
+    const container = document.getElementById('authors_container');
+    const currentIndex = container.children.length;
+    
+    const div = document.createElement('div');
+    div.className = 'author-row';
+    div.innerHTML = `
+        ${currentIndex + 1}. 
+        <input type="text" name="author_name_${currentIndex}" placeholder="Author Name"> 
+        <input type="text" name="author_affiliations_${currentIndex}" placeholder="University A, Company B" size="40">
+        <button type="button" onclick="this.parentElement.remove(); renumberAuthors();" class="delete-button-small">✕</button>
+    `;
+    
+    container.appendChild(div);
+}
 
-        // 使用 currentIndex + 1 作为显示给用户的序号 (1., 2., 3...)
-        div.innerHTML = `
-            ${currentIndex + 1}. 
-            <input type="text" name="author_name_${currentIndex}" placeholder="Name"> 
-            <input type="text" name="author_affiliations_${currentIndex}" placeholder="Affiliations (comma sep)">
-        `;
+function renumberAuthors() {
+    const container = document.getElementById('authors_container');
+    Array.from(container.children).forEach((row, index) => {
+        const firstText = row.childNodes[0];
+        firstText.textContent = `${index + 1}. `;
         
-        container.appendChild(div);
-    }
+        // Update input names
+        const inputs = row.querySelectorAll('input');
+        inputs[0].name = `author_name_${index}`;
+        inputs[1].name = `author_affiliations_${index}`;
+    });
+}
 </script>
 {% endblock %}

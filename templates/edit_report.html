@@ -1,40 +1,79 @@
+<!-- ========================================
+     templates/edit_report.html - 編輯報告（修正版）
+     ======================================== -->
 {% extends "_base.html" %}
 {% block content %}
 <h1>Edit Report</h1>
 <form action="/reports/{{ report.id }}/edit" method="post" class="main-form">
 
+    <!-- Report Info -->
     <h3>Report Info</h3>
-    <label class="full-width-label">Title:
+    <label class="full-width-label">
+        Title:
         <input type="text" name="report_title" value="{{ report.report_title|default('') }}" required>
     </label>
     <br><br>
 
-    <label class="full-width-label">Summary:<br>
+    <label class="full-width-label">
+        Summary:<br>
         <textarea name="report_summary" rows="3">{{ report.report_summary|default('') }}</textarea>
     </label>
     <br><br>
 
-    <label class="full-width-label">Slides Link:
+    <label class="full-width-label">
+        Slides Link:
         <input type="url" name="slides_link" value="{{ report.slides_link|default('') }}">
     </label>
 
+    <hr>
+
+    <!-- Meeting Section - NOW SYMMETRIC WITH UPLOAD -->
     <h3>Meeting</h3>
-    <p class="meta">Change the meeting this report belongs to:</p>
-    <select name="existing_meeting_id">
-        <option value="">(No Meeting)</option>
-        {% for m in meetings %}
-        <option value="{{ m.id }}" {% if m.id == current_meeting_id %}selected{% endif %}>
-            {{ m.meeting_title }} ({{ m.meeting_date }})
-        </option>
-        {% endfor %}
-    </select>
+    <div class="form-section">
+        <label><strong>Option 1: Select Different Meeting</strong></label>
+        <select name="existing_meeting_id" class="select-option">
+            <option value="">-- Create New Meeting --</option>
+            {% for m in meetings %}
+            <option value="{{ m.id }}" {% if m.id == current_meeting_id %}selected{% endif %}>
+                {{ m.meeting_title }} ({{ m.meeting_date }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="option-toggle-block">
+        <label><strong>Option 2: Create New Meeting</strong></label>
+        <p class="meta">Fill in the fields below to create a new meeting and switch to it</p>
+        
+        <label class="full-width-label">
+            Meeting Title:
+            <input type="text" name="meeting_title" placeholder="e.g., Weekly Lab Meeting #42">
+        </label>
+        <br>
+        
+        <div class="form-row-inline">
+            <label>
+                Date:
+                <input type="date" name="meeting_date">
+            </label>
+            <label>
+                Location:
+                <input type="text" name="meeting_location" placeholder="Conference Room A">
+            </label>
+        </div>
+        
+        <p class="help-text">💡 Leave blank to keep current meeting</p>
+    </div>
 
     <hr>
+
+    <!-- Paper Section -->
     <h3>Paper Details</h3>
     
-    <div class="paper-option-block"> <label><strong>Option 1: Switch to a different existing paper</strong></label><br>
-        <select name="existing_paper_id">
-            <option value="" selected>-- Keep Current Paper & Edit Details Below --</option>
+    <div class="form-section">
+        <label><strong>Option 1: Switch to Different Paper</strong></label>
+        <select name="existing_paper_id" class="select-option">
+            <option value="" selected>-- Keep Current & Edit Below --</option>
             {% for p in papers %}
                 {% if p.id != current_paper_id %}
                 <option value="{{ p.id }}">{{ p.paper_title }}</option>
@@ -43,81 +82,105 @@
         </select>
     </div>
 
-    <div class="paper-edit-block"> <label><strong>Option 2: Edit Current Paper (or Create New)</strong></label>
-        <p class="meta">Modify the fields below to update the current paper's info.</p>
+    <div class="option-toggle-block">
+        <label><strong>Option 2: Edit Current Paper (or Create New)</strong></label>
+        <p class="meta">Modify the fields below to update current paper or create new one</p>
 
-        <label class="full-width-label">Paper Title:
-            <input type="text" name="paper_title" value="{{ current_paper.paper_title|default('') }}">
+        <label class="full-width-label">
+            Paper Title:
+            <input type="text" name="paper_title" value="{{ current_paper.paper_title|default('') }}" placeholder="Paper Title">
         </label>
         <br><br>
 
         <div class="form-row-inline">
-            Year:
-            <input type="number" name="published_year" value="{{ current_paper.published_year|default('') }}" class="input-year">
-            Month:
-            <input type="number" name="published_month" value="{{ current_paper.published_month|default('') }}" class="input-month">
+            <label>
+                Year:
+                <input type="number" name="published_year" value="{{ current_paper.published_year|default('') }}" class="input-year" placeholder="2024" min="1900" max="2100">
+            </label>
+            <label>
+                Month:
+                <input type="number" name="published_month" value="{{ current_paper.published_month|default('') }}" class="input-month" placeholder="12" min="1" max="12">
+            </label>
         </div>
         <br><br>
 
-        <label class="full-width-label">Venue:
-            <input type="text" name="journal_or_conference" value="{{ current_paper.journal_or_conference|default('') }}">
+        <label class="full-width-label">
+            Venue (Journal/Conference):
+            <input type="text" name="journal_or_conference" value="{{ current_paper.journal_or_conference|default('') }}" placeholder="Nature, CVPR 2024">
         </label>
         <br><br>
 
-        <label class="full-width-label">Tags:
-            <input type="text" name="tags" value="{{ paper_tags|default('') }}" placeholder="tag1, tag2">
+        <label class="full-width-label">
+            Tags (comma separated):
+            <input type="text" name="tags" value="{{ paper_tags|default('') }}" placeholder="machine-learning, computer-vision">
         </label>
         <br><br>
 
-        <strong>Authors:</strong> (Modifying this will reset the author list)
+        <strong>Authors:</strong> 
+        <span class="meta">(Modifying this will reset the author list)</span>
         <div id="authors_container">
-            {% for auth in paper_authors|default([]) %}
-            <div class="author-row">
-                {{ loop.index }}.
-                <input type="text" name="author_name_{{ loop.index0 }}" value="{{ auth.name|default('') }}" placeholder="Name">
-                <input type="text" name="author_affiliations_{{ loop.index0 }}"
-                       value="{{ auth.affiliations|default([])|map(attribute='name')|join(', ') }}"
-                       placeholder="Affiliations (comma sep)">
-            </div>
-            {% endfor %}
-
-            {% if (paper_authors|default([])|length) == 0 %}
-            <div class="author-row">
-                1.
-                <input type="text" name="author_name_0" placeholder="Name">
-                <input type="text" name="author_affiliations_0" placeholder="Affiliations (comma sep)">
-            </div>
+            {% if paper_authors and paper_authors|length > 0 %}
+                {% for auth in paper_authors %}
+                <div class="author-row">
+                    {{ loop.index }}.
+                    <input type="text" name="author_name_{{ loop.index0 }}" value="{{ auth.name|default('') }}" placeholder="Author Name">
+                    <input type="text" name="author_affiliations_{{ loop.index0 }}" value="{{ auth.affiliations|default('') }}" placeholder="University A, Company B" size="40">
+                    <button type="button" onclick="this.parentElement.remove(); renumberAuthors();" class="delete-button-small">✕</button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="author-row">
+                    1.
+                    <input type="text" name="author_name_0" placeholder="Author Name">
+                    <input type="text" name="author_affiliations_0" placeholder="University A, Company B" size="40">
+                    <button type="button" onclick="this.parentElement.remove(); renumberAuthors();" class="delete-button-small">✕</button>
+                </div>
             {% endif %}
         </div>
 
         <button type="button" onclick="addAuthor()" class="secondary-button">+ Add Author</button>
+        
+        <p class="help-text">💡 Leave all paper fields blank to remove paper from this report</p>
     </div>
 
     <br><br>
-    <button type="submit" class="primary-button-large">
-        Update Report
-    </button>
+    <button type="submit" class="primary-button-large">Update Report</button>
     <a href="/reports/{{ report.id }}" class="cancel-link">Cancel</a>
 
 </form>
 
 <script>
-    function addAuthor() {
-        const container = document.getElementById('authors_container');
-        // 获取当前容器内的作者行数，这直接作为新作者的索引 (0, 1, 2...)
-        const currentIndex = container.children.length; 
+function addAuthor() {
+    const container = document.getElementById('authors_container');
+    const currentIndex = container.children.length;
+    
+    const div = document.createElement('div');
+    div.className = 'author-row';
+    div.innerHTML = `
+        ${currentIndex + 1}.
+        <input type="text" name="author_name_${currentIndex}" placeholder="Author Name">
+        <input type="text" name="author_affiliations_${currentIndex}" placeholder="University A, Company B" size="40">
+        <button type="button" onclick="this.parentElement.remove(); renumberAuthors();" class="delete-button-small">✕</button>
+    `;
+
+    container.appendChild(div);
+}
+
+function renumberAuthors() {
+    const container = document.getElementById('authors_container');
+    const rows = Array.from(container.children);
+    
+    rows.forEach((row, index) => {
+        const firstText = row.childNodes[0];
+        firstText.textContent = `${index + 1}. `;
         
-        const div = document.createElement('div');
-        div.className = 'author-row';
-
-        // 使用 currentIndex + 1 作为显示给用户的序号 (1., 2., 3...)
-        div.innerHTML = `
-            ${currentIndex + 1}.
-            <input type="text" name="author_name_${currentIndex}" placeholder="Name">
-            <input type="text" name="author_affiliations_${currentIndex}" placeholder="Affiliations (comma sep)" size="40">
-        `;
-
-        container.appendChild(div);
-    }
+        // Update input names
+        const inputs = row.querySelectorAll('input');
+        if (inputs.length >= 2) {
+            inputs[0].name = `author_name_${index}`;
+            inputs[1].name = `author_affiliations_${index}`;
+        }
+    });
+}
 </script>
 {% endblock %}

@@ -1,0 +1,34 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>Create New Meeting</h1>
+
+{% if error %}
+<div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form action="/meetings/create" method="post" class="main-form">
+    <label class="full-width-label">
+        Meeting Title:
+        <input type="text" name="meeting_title" required 
+               placeholder="e.g., Weekly Lab Meeting #42">
+    </label>
+    <br><br>
+
+    <label class="full-width-label">
+        Date:
+        <input type="date" name="meeting_date" required 
+               value="{{ request.args.get('date', '') }}">
+    </label>
+    <br><br>
+
+    <label class="full-width-label">
+        Location:
+        <input type="text" name="meeting_location" 
+               placeholder="e.g., Conference Room A">
+    </label>
+    <br><br>
+
+    <button type="submit" class="primary-button-large">Create Meeting</button>
+    <a href="/meetings" class="cancel-link">Cancel</a>
+</form>
+{% endblock %}

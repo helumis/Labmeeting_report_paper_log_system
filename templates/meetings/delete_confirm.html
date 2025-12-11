@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>⚠️ Confirm Delete</h1>
+
+<div class="warning-box">
+    <p><strong>{{ error }}</strong></p>
+    <p>Meeting: <strong>{{ meeting.meeting_title }}</strong></p>
+    <p>This meeting has <strong>{{ reports|length }}</strong> associated report(s):</p>
+    
+    <ul>
+        {% for report in reports %}
+        <li><a href="/reports/{{ report.id }}">{{ report.report_title }}</a></li>
+        {% endfor %}
+    </ul>
+    
+    <p>What would you like to do?</p>
+</div>
+
+<div class="action-buttons">
+    <form action="/meetings/{{ meeting.id }}/delete" method="post" class="inline-form">
+        <input type="hidden" name="force" value="true">
+        <button type="submit" class="delete-button" 
+                onclick="return confirm('This will unlink all reports from this meeting. Continue?');">
+            Force Delete (Unlink Reports)
+        </button>
+    </form>
+    
+    <a href="/meetings/{{ meeting.id }}" class="secondary-button">Cancel</a>
+</div>
+
+<p class="help-text">
+    💡 <strong>Tip:</strong> "Force Delete" will remove the meeting but keep all reports. 
+    The reports will be unlinked from this meeting.
+</p>
+{% endblock %}
